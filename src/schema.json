@@ -1,0 +1,450 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "$id": "https://github.com/solve-hq/dynamo-spec-generator/src/specSchema.json",
+  "title": "DynamoDB Spec",
+  "description": "The JSON schema for the spec json supplied to this tool",
+  "type": "object",
+  "properties": {
+    "service": {
+      "description": "The name of the service",
+      "type": "string"
+    },
+    "tableName": {
+      "description": "The name of the DynamoDB table",
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 255,
+      "pattern": "^[a-zA-Z0-9._-]*$"
+    },
+    "attributes": {
+      "description": "attribute definitions in DynamoDB format",
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[A-Za-z]+$": {
+          "$ref": "#/definitions/primaryKeyAttribute"
+        }
+      }
+    },
+    "indexes": {
+      "type": "object",
+      "description": "describes the table indexes, including the main index",
+      "minProperties": 1,
+      "properties": {
+        "main": {
+          "description": "describes the primary key attributes for the main table",
+          "$ref": "#/definitions/mainIndex"
+        }
+      },
+      "patternProperties": {
+        "^[A-Za-z0-9]+$": {
+          "$ref": "#/definitions/secondaryIndex"
+        }
+      },
+      "required": ["main"]
+    },
+    "accessPatterns": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/accessPattern"
+      }
+    },
+    "records": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/record"
+      }
+    }
+  },
+  "required": ["service", "tableName", "attributes", "indexes"],
+  "definitions": {
+    "record": {
+      "type": "object",
+      "required": { "$data": "/_meta/primaryKeys" }
+    },
+    "primaryKeyAttribute": {
+      "type": "object",
+      "description": "A DynamoDB primary key attribute definition",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["S", "N", "B"]
+        }
+      },
+      "required": ["type"],
+      "additionalProperties": false
+    },
+    "mainIndex": {
+      "type": "object",
+      "properties": {
+        "partition": {
+          "description": "name of the partition (HASH) attribute",
+          "$ref": "#/definitions/attributeName"
+        },
+        "sort": {
+          "description": "name of the sort (RANGE) attribute",
+          "$ref": "#/definitions/attributeName"
+        }
+      },
+      "required": ["partition"],
+      "additionalProperties": false
+    },
+    "secondaryIndex": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["global", "local"]
+        },
+        "partition": {
+          "description": "name of the partition (HASH) attribute",
+          "$ref": "#/definitions/attributeName"
+        },
+        "sort": {
+          "description": "name of the sort (RANGE) attribute",
+          "$ref": "#/definitions/attributeName"
+        },
+        "projection": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["all", "keys_only"]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["all", "keys_only", "include"]
+                },
+                "keys": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/attributeName"
+                  },
+                  "uniqueItems": true,
+                  "minItems": 1
+                }
+              },
+              "required": ["type"]
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": ["partition", "sort"]
+    },
+    "accessPattern": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "index": {
+          "type": "string",
+          "enum": { "$data": "/_meta/indexes" }
+        },
+        "type": {
+          "type": "string",
+          "enum": ["query", "get"]
+        },
+        "condition": {
+          "$ref": "#/definitions/condition"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["title", "index", "type", "condition"]
+    },
+    "condition": {
+      "type": "object",
+      "properties": {
+        "sort": {
+          "$ref": "#/definitions/sortCondition"
+        },
+        "partition": {
+          "type": "object",
+          "required": ["value"],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array"
+                },
+                { "type": "integer" }
+              ]
+            }
+          }
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/filter"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": ["partition"]
+    },
+    "sortCondition": {
+      "type": "object",
+      "oneOf": [
+        {
+          "required": ["operator", "value"],
+          "properties": {
+            "operator": {
+              "type": "string",
+              "enum": ["=", ">", ">=", "<", "<="]
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "required": ["operator", "value"],
+          "properties": {
+            "operator": {
+              "type": "string",
+              "enum": ["begins_with"]
+            },
+            "value": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "required": ["operator", "lowerValue", "upperValue"],
+          "properties": {
+            "operator": {
+              "type": "string",
+              "enum": ["between"]
+            },
+            "lowerValue": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "upperValue": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "filter": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attribute", "operator", "value", "sizeOperator"],
+          "properties": {
+            "attribute": {
+              "$ref": "#/definitions/attributeName"
+            },
+            "operator": {
+              "type": "string",
+              "const": "size"
+            },
+            "value": {
+              "type": "number"
+            },
+            "sizeOperator": {
+              "type": "string",
+              "enum": [">", "<", ">=", "<=", "="]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attribute", "operator", "value"],
+          "properties": {
+            "attribute": {
+              "$ref": "#/definitions/attributeName"
+            },
+            "operator": {
+              "type": "string",
+              "const": "begins_with"
+            },
+            "value": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attribute", "operator", "value"],
+          "properties": {
+            "attribute": {
+              "$ref": "#/definitions/attributeName"
+            },
+            "operator": {
+              "type": "string",
+              "enum": ["=", "<>", ">", "<", ">=", "<=", "contains"]
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attribute", "operator", "lowerValue", "upperValue"],
+          "properties": {
+            "attribute": {
+              "$ref": "#/definitions/attributeName"
+            },
+            "operator": {
+              "type": "string",
+              "const": "between"
+            },
+            "lowerValue": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "upperValue": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attribute", "operator", "value"],
+          "properties": {
+            "attribute": {
+              "$ref": "#/definitions/attributeName"
+            },
+            "operator": {
+              "type": "string",
+              "const": "in"
+            },
+            "value": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attribute", "operator"],
+          "properties": {
+            "attribute": {
+              "$ref": "#/definitions/attributeName"
+            },
+            "operator": {
+              "type": "string",
+              "enum": ["attribute_exists", "attribute_not_exists"]
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["attribute", "operator", "value"],
+          "properties": {
+            "attribute": {
+              "$ref": "#/definitions/attributeName"
+            },
+            "operator": {
+              "type": "string",
+              "const": "attribute_type"
+            },
+            "value": {
+              "type": "string",
+              "enum": [
+                "S",
+                "SS",
+                "N",
+                "NS",
+                "B",
+                "BS",
+                "BOOL",
+                "NULL",
+                "L",
+                "M"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "attributeName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^[A-Za-z0-9_.-]+$"
+    }
+  }
+}

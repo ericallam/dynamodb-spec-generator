@@ -1,0 +1,47 @@
+{
+  "name": "dynamodb-spec-generator",
+  "version": "0.0.1",
+  "description": "A command line tool to generate documentation for a DynamoDB table and its access patterns.",
+  "main": "src/index.js",
+  "repository": "https://github.com/ericallam/dynamodb-spec-generator",
+  "author": "Eric Allam",
+  "license": "MIT",
+  "scripts": {
+    "test": "jest"
+  },
+  "engines": {
+    "node": ">= 8.0.0"
+  },
+  "dependencies": {
+    "@oclif/command": "^1.5.8",
+    "@oclif/config": "^1.10.4",
+    "@oclif/plugin-help": "^2.1.4",
+    "ajv": "^6.7.0",
+    "ajv-i18n": "^3.4.0",
+    "ajv-keywords": "^3.2.0",
+    "lodash": "^4.17.11",
+    "md5": "^2.2.1",
+    "mdast-util-toc": "^3.0.1",
+    "prettier": "^1.15.3",
+    "remark-parse": "^6.0.3",
+    "remark-stringify": "^6.0.4",
+    "unified": "^7.1.0",
+    "unist-builder": "^1.0.3"
+  },
+  "devDependencies": {
+    "jest": "^23.6.0"
+  },
+  "jest": {
+    "testEnvironment": "node"
+  },
+  "bin": {
+    "generate-dynamo-spec": "./bin/run"
+  },
+  "oclif": {
+    "bin": "dynamodb-spec-generator"
+  },
+  "files": [
+    "/bin",
+    "/src"
+  ]
+}

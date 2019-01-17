@@ -1,0 +1,25 @@
+{
+  "tableName": "HR",
+  "service": "HR Api Backend",
+  "description": "A DynamoDB table design corresponds to the relational order entry schema that is shown in Relational Modeling",
+  "attributes": {
+    "PK": {
+      "type": "S"
+    },
+    "SK": {
+      "type": "S"
+    },
+    "Data": {
+      "type": "S"
+    }
+  },
+  "indexes": {
+    "main": {
+      "partition": "PK",
+      "sort": "SK"
+    },
+    "gsi1": {
+      "partition": ""
+    }
+  }
+}
