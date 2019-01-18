@@ -1,7 +1,9 @@
 {
   "tableName": "HR-Table",
   "service": "HR Api Backend",
-  "description": "A DynamoDB table design corresponds to the relational order entry schema that is shown in Relational Modeling",
+  "version": "1.0.0",
+  "description": "A recreation of the Relational Modeling example in the DynamoDB Docs",
+  "author": "Eric Allam",
   "attributes": {
     "PK": {
       "type": "S"

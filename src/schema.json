@@ -16,6 +16,17 @@
       "maxLength": 255,
       "pattern": "^[a-zA-Z0-9._-]*$"
     },
+    "version": {
+      "description": "The version of this spec",
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 255,
+      "pattern": "^[a-zA-Z0-9._-]*$"
+    },
+    "author": {
+      "description": "The author of this spec",
+      "type": "string"
+    },
     "attributes": {
       "description": "attribute definitions in DynamoDB format",
       "type": "object",
