@@ -1,5 +1,5 @@
 {
-  "tableName": "HR",
+  "tableName": "HR-Table",
   "service": "HR Api Backend",
   "description": "A DynamoDB table design corresponds to the relational order entry schema that is shown in Relational Modeling",
   "attributes": {
@@ -19,7 +19,63 @@
       "sort": "SK"
     },
     "gsi1": {
-      "partition": ""
+      "partition": "SK",
+      "sort": "Data",
+      "type": "global",
+      "projection": "all"
     }
-  }
+  },
+  "accessPatterns": [
+    {
+      "title": "Look up Employee Details by Employee ID",
+      "type": "get",
+      "index": "main",
+      "condition": {
+        "partition": { "value": "HR-EMPLOYEE1" },
+        "sort": { "value": "EMPLOYEE1", "operator": "=" }
+      }
+    },
+    {
+      "title": "Query Employee Details by Employee Name",
+      "type": "query",
+      "index": "gsi1",
+      "condition": {
+        "partition": { "value": "EMPLOYEE1" },
+        "sort": { "value": "John", "operator": "begins_with" }
+      }
+    },
+    {
+      "title": "Get an employee's current job details only",
+      "index": "main",
+      "type": "query",
+      "condition": {
+        "partition": { "value": "HR-EMPLOYEE1" },
+        "sort": { "value": "v0", "operator": "begins_with" }
+      }
+    },
+    {
+      "title": "Get Open Orders for a customer for a date range",
+      "type": "query",
+      "index": "gsi1",
+      "condition": {
+        "partition": { "value": "CUSTOMER1" },
+        "sort": { "value": "OPEN#2019-01", "operator": "begins_with" }
+      }
+    }
+  ],
+  "records": [
+    {
+      "PK": "HR-EMPLOYEE1",
+      "SK": "EMPLOYEE1",
+      "Data": "John Smith",
+      "StartDate": "01-12-2019"
+    },
+    { "PK": "HR-EMPLOYEE1", "SK": "v0", "Data": "Principle Account Manager" },
+    {
+      "PK": "OE-ORDER1",
+      "SK": "CUSTOMER1",
+      "Data": "OPEN#2019-01-18",
+      "GSI-Bucket": 6
+    }
+  ]
 }

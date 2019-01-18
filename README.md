@@ -15,7 +15,7 @@ For example, the DynamoDB [Relational Modeling](https://docs.aws.amazon.com/amaz
 
 Did you notice above that there is actually a second GSI in there?
 
-`dynamodb-spec-generator` was created to help alleviate this issue, to make it easier to design a DynamoDB according to the access patterns. All you have to do is provide it with a valid [DynamoDB spec](#dynamodb-spec) file and it will output a markdown document. 
+`dynamodb-spec-generator` was created to help alleviate this issue, to make it easier to design a DynamoDB according to the access patterns. All you have to do is provide it with a valid [DynamoDB spec](#dynamodb-spec) file and it will output a markdown document.
 
 ## Installation
 
@@ -44,7 +44,7 @@ $ npx dynamodb-spec-generator
 `dynamodb-spec-generator` takes a single argument, the path to the [spec file](#dynamodb-spec), and will output the markdown to `stdout`:
 
 ```bash
-$ npx dynamodb-spec-generator spec.json 
+$ npx dynamodb-spec-generator spec.json
 ```
 
 If you want to instead save it to a file, pass the `-o` flag:
@@ -61,7 +61,7 @@ $ npx dynamodb-spec-generator spec.json -o README.md --watch
 
 ## Example
 
-This example [spec file](#dynamodb-spec) attempts to recreate the table defined in the [Relational Modeling](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-modeling-nosql-B.html) docs. 
+This example [spec file](#dynamodb-spec) attempts to recreate the table defined in the [Relational Modeling](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/bp-modeling-nosql-B.html) docs.
 
 ```json
 
@@ -69,3 +69,9 @@ This example [spec file](#dynamodb-spec) attempts to recreate the table defined 
 
 ## DynamoDB Spec
 
+## TODO
+
+- Shards
+- Scatter/Gather access patterns
+- Local Secondary Indexes
+- TTL attribute
