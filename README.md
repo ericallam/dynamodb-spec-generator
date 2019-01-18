@@ -71,6 +71,10 @@ This example [spec file](#dynamodb-spec) attempts to recreate the table defined 
 
 ## TODO
 
+- Query projection
+- Query attributes to get
+- Consistent reads
+- Query Scan Backward
 - Shards
 - Scatter/Gather access patterns
 - Local Secondary Indexes

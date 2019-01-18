@@ -168,25 +168,10 @@ const resolveQueryConditionCode = (operator, sk) => {
 
   const operators = {
     begins_with: () => `begins_with(#${sk}, :${sk})`,
-    between: () => `#${sk} between :${sk}Lower AND :${sk}Upper`
+    between: () => `#${sk} BETWEEN :${sk}Min AND :${sk}Max`
   };
 
   return (operators[_.toLower(operator)] || defaultOperatorResolver)();
-};
-
-const resolveExpressionAttributeValues = (condition, sk, pk) => {
-  if (_.toLower(condition.sort.operator) === "between") {
-    return {
-      [`:${pk}`]: condition.partition.value,
-      [`:${sk}Lower`]: condition.sort.lowerValue,
-      [`:${sk}Upper`]: condition.sort.upperValue
-    };
-  }
-
-  return {
-    [`:${pk}`]: condition.partition.value,
-    [`:${sk}`]: condition.sort.value
-  };
 };
 
 const generateSortKeyConditionCode = (spec, accessPattern) => {
@@ -194,31 +179,35 @@ const generateSortKeyConditionCode = (spec, accessPattern) => {
 
   return u("inlineCode", {
     value: resolveQueryConditionCode(
-      accessPattern.condition.sort.operator,
+      accessPattern.params.sort.operator,
       sortKey
     )
   });
 };
 
 const sortKeyQueryMatcher = (actualValue, sort) => {
-  const { value, upperValue, lowerValue } = sort;
+  if (_.isPlainObject(sort)) {
+    const { value, maxValue, minValue } = sort;
 
-  switch (sort.operator) {
-    case "<":
-      return actualValue < value;
-    case "<=":
-      return actualValue <= value;
-    case ">":
-      return actualValue > value;
-    case ">=":
-      return actualValue >= value;
-    case "=":
-      return actualValue === value;
-    case "between":
-      return lowerValue < actualValue && actualValue < upperValue;
-    case "begins_with":
-      return _.startsWith(actualValue, value);
+    switch (sort.operator) {
+      case "<":
+        return actualValue < value;
+      case "<=":
+        return actualValue <= value;
+      case ">":
+        return actualValue > value;
+      case ">=":
+        return actualValue >= value;
+      case "=":
+        return actualValue === value;
+      case "between":
+        return minValue < actualValue && actualValue < maxValue;
+      case "begins_with":
+        return _.startsWith(actualValue, value);
+    }
   }
+
+  return actualValue === sort;
 };
 
 const recordMatchesQueryFilter = (filter, record) => {
@@ -227,15 +216,15 @@ const recordMatchesQueryFilter = (filter, record) => {
     operator,
     value,
     sizeOperator,
-    upperValue,
-    lowerValue
+    maxValue,
+    minValue
   } = filter;
 
   const actualValue = record[attribute];
 
   switch (operator) {
     case "between":
-      return lowerValue < actualValue && actualValue < upperValue;
+      return minValue < actualValue && actualValue < maxValue;
     case "in":
       return _.includes(value, actualValue);
     case "attribute_exists":
@@ -300,39 +289,65 @@ const recordMatchesQueryFilter = (filter, record) => {
 };
 
 const recordMatchesQueryCondition = (spec, record, accessPattern) => {
-  const { condition, index } = accessPattern;
+  const { params, index } = accessPattern;
 
   const pk = getIndexPartitionKey(spec, index);
 
   const recordPartitionKeyValue = record[pk];
 
-  if (recordPartitionKeyValue !== condition.partition.value) {
+  if (
+    recordPartitionKeyValue !== resolveParamsKeyPartValue(params, "partition")
+  ) {
     return false;
   }
 
-  const sk = getIndexSortKey(spec, index);
-
-  if (!sortKeyQueryMatcher(record[sk], condition.sort)) {
-    return false;
-  }
-
-  if (!condition.filters) {
+  if (!params.sort && !params.filters) {
     return true;
   }
 
-  return _.every(condition.filters, filter =>
+  if (params.sort) {
+    const sk = getIndexSortKey(spec, index);
+
+    if (!sortKeyQueryMatcher(record[sk], params.sort)) {
+      return false;
+    }
+  }
+
+  if (!params.filters) {
+    return true;
+  }
+
+  return _.every(params.filters, filter =>
     recordMatchesQueryFilter(filter, record)
   );
 };
 
 const queryRecords = (spec, accessPattern) => {
-  return spec.records.filter(record =>
+  let result = spec.records.filter(record =>
     recordMatchesQueryCondition(spec, record, accessPattern)
   );
+
+  const indexSpec = spec.indexes[accessPattern.index];
+
+  if (indexSpec.sort) {
+    const sk = getIndexSortKey(spec, accessPattern.index);
+
+    result = _.sortBy(result, record => _.toInteger(record[sk]));
+  }
+
+  if (
+    indexSpec.sort &&
+    accessPattern.params.order &&
+    accessPattern.params.order === "DESC"
+  ) {
+    result.reverse();
+  }
+
+  return result;
 };
 
 const getRecord = (spec, accessPattern) => {
-  const { condition, index } = accessPattern;
+  const { params, index } = accessPattern;
 
   const pk = getIndexPartitionKey(spec, index);
   const sk = getIndexSortKey(spec, index);
@@ -342,8 +357,9 @@ const getRecord = (spec, accessPattern) => {
     const recordSortKeyValue = record[sk];
 
     return (
-      recordPartitionKeyValue === condition.partition.value &&
-      recordSortKeyValue === condition.sort.value
+      recordPartitionKeyValue ===
+        resolveParamsKeyPartValue(params, "partition") &&
+      recordSortKeyValue === resolveParamsKeyPartValue(params, "sort")
     );
   });
 };
@@ -356,62 +372,78 @@ const findAllRecordsMatchingAccessPattern = (spec, accessPattern) => {
   return _.compact([getRecord(spec, accessPattern)]);
 };
 
-const generateRecordsTableHeaderRow = (spec, accessPattern) => {
-  const records = findAllRecordsMatchingAccessPattern(spec, accessPattern);
-
-  const allKeys = records.reduce(
-    (memo, record) => memo.concat(Object.keys(record)),
-    []
-  );
-
-  return [
-    u("tableRow", allKeys.map(columnName => u("tableCell", [t(columnName)])))
-  ];
-};
-
-const generateRecordValue = (record, columnName) => {
-  const value = record[columnName];
-
-  if (typeof value === "string" || typeof value === "number") {
-    return t(value.toString());
-  }
-
-  if (typeof value === "undefined") {
-    return u("emphasis", [t("n/a")]);
-  }
-
-  return u("link", { title: columnName, url: `#${columnName}-object` }, [
-    t(`${columnName} map`)
-  ]);
-};
-
-const generateRecordsTableRows = (spec, accessPattern) => {
-  const records = findAllRecordsMatchingAccessPattern(spec, accessPattern);
-
-  const allKeys = records.reduce(
-    (memo, record) => memo.concat(Object.keys(record)),
-    []
-  );
-
-  return records.map(record => {
-    return u(
-      "tableRow",
-      allKeys.map(columnName => {
-        return u("tableCell", [generateRecordValue(record, columnName)]);
-      })
-    );
-  });
-};
-
 const generateFilterExpressionConditionIntro = (spec, accessPattern) => {
-  if (!accessPattern.condition.filters) {
+  if (!accessPattern.params.filters) {
     return [t(":")];
   }
 
-  return [t(" with filter conditions:")];
+  return [t(" with filter params:")];
 };
 
-const generateQueryIntro = (depth, spec, accessPattern) => {
+const generateSortKeyConditionIntro = (spec, accessPattern) => {
+  if (!accessPattern.params.sort) {
+    return [];
+  }
+
+  return [
+    t(" with a "),
+    generateSortKeyConditionCode(spec, accessPattern),
+    t(" condition on the sort key")
+  ];
+};
+
+const resolveKeyConditionExpression = (spec, accessPattern) => {
+  const pk = getIndexPartitionKey(spec, accessPattern.index);
+  const sk = getIndexSortKey(spec, accessPattern.index);
+
+  if (!accessPattern.params.sort) {
+    return `#${pk} = :${pk}`;
+  }
+
+  return `#${pk} = :${pk} and ${resolveQueryConditionCode(
+    accessPattern.params.sort.operator,
+    sk
+  )}`;
+};
+
+const resolveExpressionAttributeValues = (spec, accessPattern) => {
+  const pk = getIndexPartitionKey(spec, accessPattern.index);
+  const sk = getIndexSortKey(spec, accessPattern.index);
+
+  const result = {
+    [`:${pk}`]: resolveParamsKeyPartValue(accessPattern.params, "partition")
+  };
+
+  if (accessPattern.params.sort) {
+    if (_.toLower(accessPattern.params.sort.operator) === "between") {
+      Object.assign(result, {
+        [`:${sk}Min`]: accessPattern.params.sort.minValue,
+        [`:${sk}Max`]: accessPattern.params.sort.maxValue
+      });
+    } else {
+      Object.assign(result, {
+        [`:${sk}`]: resolveParamsKeyPartValue(accessPattern.params, "sort")
+      });
+    }
+  }
+
+  return result;
+};
+
+const resolveExpressionAttributeNames = (spec, accessPattern) => {
+  const pk = getIndexPartitionKey(spec, accessPattern.index);
+  const sk = getIndexSortKey(spec, accessPattern.index);
+
+  const result = { [`#${pk}`]: pk };
+
+  if (accessPattern.params.sort) {
+    Object.assign(result, { [`#${sk}`]: sk });
+  }
+
+  return result;
+};
+
+const generateQueryRequest = (depth, spec, accessPattern) => {
   const pk = getIndexPartitionKey(spec, accessPattern.index);
   const sk = getIndexSortKey(spec, accessPattern.index);
 
@@ -421,41 +453,41 @@ const generateQueryIntro = (depth, spec, accessPattern) => {
       [
         t("Perform a "),
         externalLinks.query,
-        t(` against the ${_.upperFirst(accessPattern.index)} index with a `),
-        generateSortKeyConditionCode(spec, accessPattern),
-        t(" condition on the sort key")
-      ].concat(generateFilterExpressionConditionIntro(spec, accessPattern))
+        t(` against the ${_.upperFirst(accessPattern.index)} index`)
+      ]
+        .concat(generateSortKeyConditionIntro(spec, accessPattern))
+        .concat(generateFilterExpressionConditionIntro(spec, accessPattern))
     )
   ];
 
   const queryParamsSpec = {
     TableName: spec.tableName,
-    KeyConditionExpression: `#${pk} = :${pk} and ${resolveQueryConditionCode(
-      accessPattern.condition.sort.operator,
-      sk
-    )}`,
-    ExpressionAttributeNames: {
-      [`#${pk}`]: pk,
-      [`#${sk}`]: sk
-    },
+    KeyConditionExpression: resolveKeyConditionExpression(spec, accessPattern),
+    ExpressionAttributeNames: resolveExpressionAttributeNames(
+      spec,
+      accessPattern
+    ),
     ExpressionAttributeValues: resolveExpressionAttributeValues(
-      accessPattern.condition,
-      sk,
-      pk
+      spec,
+      accessPattern
     )
   };
+
+  if (accessPattern.params.order && accessPattern.params.order === "DESC") {
+    queryParamsSpec.ScanIndexFoward = false;
+  }
 
   if (accessPattern.index !== "main") {
     queryParamsSpec.IndexName = accessPattern.index;
   }
 
-  if (accessPattern.condition.filters) {
-    const filterExpressions = accessPattern.condition.filters.map(filter => {
+  if (accessPattern.params.filters) {
+    const filterExpressions = accessPattern.params.filters.map(filter => {
       switch (filter.operator) {
         case "between":
-          return `#${filter.attribute} BETWEEN :${filter.attribute}Lower AND :${
+          return `#${filter.attribute} BETWEEN :${filter.attribute}Min AND :${
             filter.attribute
-          }Upper`;
+          }Max`;
         case "in":
           return `#${filter.attribute} IN (${_.join(
             filter.value.map((_v, i) => `:${filter.attribute}${i}`),
@@ -484,18 +516,16 @@ const generateQueryIntro = (depth, spec, accessPattern) => {
 
     queryParamsSpec.FilterExpression = _.join(filterExpressions, " AND ");
 
-    accessPattern.condition.filters.forEach(filter => {
+    accessPattern.params.filters.forEach(filter => {
       queryParamsSpec.ExpressionAttributeNames[`#${filter.attribute}`] =
         filter.attribute;
 
       switch (filter.operator) {
         case "between":
-          queryParamsSpec.ExpressionAttributeValues[
-            `:${filter.attribute}Lower`
-          ] = filter.lowerValue;
-          queryParamsSpec.ExpressionAttributeValues[
-            `:${filter.attribute}Upper`
-          ] = filter.upperValue;
+          queryParamsSpec.ExpressionAttributeValues[`:${filter.attribute}Min`] =
+            filter.minValue;
+          queryParamsSpec.ExpressionAttributeValues[`:${filter.attribute}Max`] =
+            filter.maxValue;
           break;
         case "in":
           filter.value.forEach((value, i) => {
@@ -526,23 +556,45 @@ const generateQueryIntro = (depth, spec, accessPattern) => {
     })
   ];
 
-  const records = [
-    h(depth + 1, "Matching Records"),
-    u(
-      "table",
-      generateRecordsTableHeaderRow(spec, accessPattern).concat(
-        generateRecordsTableRows(spec, accessPattern)
-      )
-    )
-  ];
+  const recordsSection = generateAccessPatternRecordsSection(
+    spec,
+    accessPattern,
+    depth
+  );
 
-  return [h(depth, accessPattern.title)]
-    .concat(introProse)
-    .concat(params)
-    .concat(records);
+  return introProse.concat(params).concat(recordsSection);
 };
 
-const generateGetIntro = (depth, spec, accessPattern) => {
+const generateAccessPatternRecordsSection = (spec, accessPattern, depth) => {
+  const indexSpec = spec.indexes[accessPattern.index];
+
+  let recordsSection;
+
+  const matchingRecords = findAllRecordsMatchingAccessPattern(
+    spec,
+    accessPattern
+  );
+
+  if (matchingRecords.length) {
+    recordsSection = [h(depth + 1, "Matching Records")].concat(
+      generateTable(spec, accessPattern.index, indexSpec, matchingRecords)
+    );
+  } else {
+    recordsSection = [];
+  }
+
+  return recordsSection;
+};
+
+const resolveParamsKeyPartValue = (params, keyPart) => {
+  if (_.isPlainObject(params[keyPart])) {
+    return params[keyPart].value;
+  }
+
+  return params[keyPart];
+};
+
+const generateGetRequest = (depth, spec, accessPattern) => {
   const pk = getIndexPartitionKey(spec, accessPattern.index);
   const sk = getIndexSortKey(spec, accessPattern.index);
 
@@ -561,8 +613,8 @@ const generateGetIntro = (depth, spec, accessPattern) => {
         {
           TableName: spec.tableName,
           Key: {
-            [pk]: accessPattern.condition.partition.value,
-            [sk]: accessPattern.condition.sort.value
+            [pk]: resolveParamsKeyPartValue(accessPattern.params, "partition"),
+            [sk]: resolveParamsKeyPartValue(accessPattern.params, "sort")
           }
         },
         null,
@@ -571,28 +623,39 @@ const generateGetIntro = (depth, spec, accessPattern) => {
     })
   ];
 
-  const records = [
-    h(depth + 1, "Matching Records"),
-    u(
-      "table",
-      generateRecordsTableHeaderRow(spec, accessPattern).concat(
-        generateRecordsTableRows(spec, accessPattern)
-      )
-    )
-  ];
+  const records = generateAccessPatternRecordsSection(
+    spec,
+    accessPattern,
+    depth
+  );
 
-  return [h(depth, accessPattern.title)]
-    .concat(introProse)
-    .concat(params)
-    .concat(records);
+  return introProse.concat(params).concat(records);
+};
+
+const generateAccessPatternHeader = (depth, spec, accessPattern) => {
+  return [h(depth, accessPattern.title)].concat(
+    accessPattern.description
+      ? [u("blockquote", [t(accessPattern.description)])]
+      : []
+  );
+};
+
+const generateAccessPatternRequest = (depth, spec, accessPattern) => {
+  if (!accessPattern.type || !accessPattern.params) {
+    return [u("paragraph", [u("emphasis", [t("coming soon")])])];
+  }
+
+  if (accessPattern.type === "query") {
+    return generateQueryRequest(depth, spec, accessPattern);
+  }
+
+  return generateGetRequest(depth, spec, accessPattern);
 };
 
 const generateAccessPattern = (depth, spec, accessPattern) => {
-  if (accessPattern.type === "query") {
-    return generateQueryIntro(depth, spec, accessPattern);
-  }
-
-  return generateGetIntro(depth, spec, accessPattern);
+  return generateAccessPatternHeader(depth, spec, accessPattern).concat(
+    generateAccessPatternRequest(depth, spec, accessPattern)
+  );
 };
 
 const generateAccessPatterns = spec => {
@@ -619,7 +682,7 @@ const getAllRecordsInIndex = (records, indexSpec) => {
   });
 };
 
-const generateIndexTableHeader = (spec, indexSpec) => {
+const generateTableHeader = indexSpec => {
   return [
     u(
       "tableRow",
@@ -631,7 +694,7 @@ const generateIndexTableHeader = (spec, indexSpec) => {
   ];
 };
 
-const generateIndexTableRecordPrimaryKeyCells = (
+const generateTableRecordPrimaryKeyCells = (
   spec,
   indexName,
   indexSpec,
@@ -648,7 +711,7 @@ const generateIndexTableRecordPrimaryKeyCells = (
   return result;
 };
 
-const genereateIndexTableRecordValue = (columnName, value) => {
+const generateTableRecordValue = (columnName, value) => {
   if (typeof value === "string" || typeof value === "number") {
     return [
       u("strong", [u("text", { value: `${columnName}:` })]),
@@ -669,55 +732,48 @@ const genereateIndexTableRecordValue = (columnName, value) => {
   ];
 };
 
-const generateIndexTableRecordAttributeCells = (
-  spec,
-  indexName,
-  indexSpec,
-  record
-) => {
+const generateTableRecordAttributeCells = (indexSpec, record) => {
   const primaryKeyAttributes = _.compact([indexSpec.partition, indexSpec.sort]);
 
   return Object.keys(_.omit(record, primaryKeyAttributes)).map(key => {
-    return u("tableCell", genereateIndexTableRecordValue(key, record[key]));
+    return u("tableCell", generateTableRecordValue(key, record[key]));
   });
 };
 
-const generateIndexTableRecord = (spec, indexName, indexSpec, record) => {
+const generateTableRecord = (spec, indexName, indexSpec, record) => {
   return u(
     "tableRow",
-    generateIndexTableRecordPrimaryKeyCells(
+    generateTableRecordPrimaryKeyCells(
       spec,
       indexName,
       indexSpec,
       record
-    ).concat(
-      generateIndexTableRecordAttributeCells(spec, indexName, indexSpec, record)
-    )
+    ).concat(generateTableRecordAttributeCells(indexSpec, record))
   );
 };
 
-const generateIndexTableRecords = (spec, indexName, indexSpec) => {
-  const records = getAllRecordsInIndex(spec.records, indexSpec);
-
+const generateTableRecords = (spec, indexName, indexSpec, records) => {
   return records.map(record =>
-    generateIndexTableRecord(spec, indexName, indexSpec, record)
+    generateTableRecord(spec, indexName, indexSpec, record)
   );
 };
 
-const generateIndexTable = (spec, indexName, indexSpec) => {
+const generateTable = (spec, indexName, indexSpec, records) => {
   return [
     u(
       "table",
-      generateIndexTableHeader(spec, indexSpec).concat(
-        generateIndexTableRecords(spec, indexName, indexSpec)
+      generateTableHeader(indexSpec).concat(
+        generateTableRecords(spec, indexName, indexSpec, records)
       )
     )
   ];
 };
 
 const generateIndex = (depth, spec, indexName, indexSpec) => {
+  const records = getAllRecordsInIndex(spec.records, indexSpec);
+
   return [h(3, _.upperFirst(indexName))].concat(
-    generateIndexTable(spec, indexName, indexSpec)
+    generateTable(spec, indexName, indexSpec, records)
   );
 };
 
@@ -733,10 +789,6 @@ const generateIndexes = spec => {
   );
 };
 
-const generateMapAttributes = spec => {
-  return [h(2, "Map Attributes")];
-};
-
 const generateAST = spec => {
   const generatorComment = [
     u(
@@ -745,14 +797,7 @@ const generateAST = spec => {
     )
   ];
 
-  const {
-    service,
-    description,
-    attributes,
-    indexes,
-    accessPatterns,
-    records
-  } = spec;
+  const { service, description } = spec;
 
   const header = [h(1, `${service} DynamoDB Spec`)];
   const desc = [p(description)];
@@ -766,7 +811,6 @@ const generateAST = spec => {
       .concat(generateTableSpec(spec))
       .concat(generateAccessPatterns(spec))
       .concat(generateIndexes(spec))
-      .concat(generateMapAttributes(spec))
   );
 
   const tableOfContents = toc(root, {

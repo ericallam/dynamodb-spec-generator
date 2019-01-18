@@ -61,7 +61,6 @@ const outputMarkdown = async (file, outputDestination) => {
     return;
   }
 
-  await updateProgress();
   await writeFile(outputDestination, markdown);
 };
 

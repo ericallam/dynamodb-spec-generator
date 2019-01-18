@@ -140,6 +140,9 @@
         "title": {
           "type": "string"
         },
+        "description": {
+          "type": "string"
+        },
         "index": {
           "type": "string",
           "enum": { "$data": "/_meta/indexes" }
@@ -148,51 +151,53 @@
           "type": "string",
           "enum": ["query", "get"]
         },
-        "condition": {
-          "$ref": "#/definitions/condition"
+        "params": {
+          "$ref": "#/definitions/params"
         }
       },
       "additionalProperties": false,
-      "required": ["title", "index", "type", "condition"]
+      "required": ["title"]
     },
-    "condition": {
+    "params": {
       "type": "object",
       "properties": {
         "sort": {
-          "$ref": "#/definitions/sortCondition"
+          "$ref": "#/definitions/sortParam"
         },
         "partition": {
-          "type": "object",
-          "required": ["value"],
-          "additionalProperties": false,
-          "properties": {
-            "value": {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array"
-                },
-                { "type": "integer" }
-              ]
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["value"],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "$ref": "#/definitions/keyValue"
+                }
+              }
+            },
+            {
+              "$ref": "#/definitions/keyValue"
             }
-          }
+          ]
         },
         "filters": {
           "type": "array",
           "items": {
             "$ref": "#/definitions/filter"
           }
+        },
+        "order": {
+          "type": "string",
+          "enum": ["ASC", "DESC"],
+          "default": "ASC",
+          "description": "Controls the ScanIndexForward param in a query request"
         }
       },
       "additionalProperties": false,
       "required": ["partition"]
     },
-    "sortCondition": {
+    "sortParam": {
       "type": "object",
       "oneOf": [
         {
@@ -230,13 +235,13 @@
           }
         },
         {
-          "required": ["operator", "lowerValue", "upperValue"],
+          "required": ["operator", "minValue", "maxValue"],
           "properties": {
             "operator": {
               "type": "string",
               "enum": ["between"]
             },
-            "lowerValue": {
+            "minValue": {
               "anyOf": [
                 {
                   "type": "number"
@@ -249,7 +254,7 @@
                 }
               ]
             },
-            "upperValue": {
+            "maxValue": {
               "anyOf": [
                 {
                   "type": "number"
@@ -336,7 +341,7 @@
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["attribute", "operator", "lowerValue", "upperValue"],
+          "required": ["attribute", "operator", "minValue", "maxValue"],
           "properties": {
             "attribute": {
               "$ref": "#/definitions/attributeName"
@@ -345,7 +350,7 @@
               "type": "string",
               "const": "between"
             },
-            "lowerValue": {
+            "minValue": {
               "anyOf": [
                 {
                   "type": "number"
@@ -358,7 +363,7 @@
                 }
               ]
             },
-            "upperValue": {
+            "maxValue": {
               "anyOf": [
                 {
                   "type": "number"
@@ -445,6 +450,19 @@
       "minLength": 1,
       "maxLength": 255,
       "pattern": "^[A-Za-z0-9_.-]+$"
+    },
+    "keyValue": {
+      "oneOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        },
+        {
+          "type": "integer"
+        }
+      ]
     }
   }
 }

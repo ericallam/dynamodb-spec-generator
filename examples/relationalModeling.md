@@ -12,10 +12,20 @@ A DynamoDB table design corresponds to the relational order entry schema that is
     -   [Query Employee Details by Employee Name](#query-employee-details-by-employee-name)
     -   [Get an employee's current job details only](#get-an-employees-current-job-details-only)
     -   [Get Open Orders for a customer for a date range](#get-open-orders-for-a-customer-for-a-date-range)
+    -   [Show all Orders in OPEN status for a date range across all customers](#show-all-orders-in-open-status-for-a-date-range-across-all-customers)
+    -   [All Employees Hired Recently](#all-employees-hired-recently)
+    -   [Find all employees in a certain warehouse](#find-all-employees-in-a-certain-warehouse)
+    -   [Get all OrderItems for a Product including warehouse location inventories](#get-all-orderitems-for-a-product-including-warehouse-location-inventories)
+    -   [Get customers by Account Rep](#get-customers-by-account-rep)
+    -   [Get orders by Account Rep and date](#get-orders-by-account-rep-and-date)
+    -   [Get all employees with specific Job Title](#get-all-employees-with-specific-job-title)
+    -   [Get inventory by Product and Warehouse](#get-inventory-by-product-and-warehouse)
+    -   [Get total product inventory](#get-total-product-inventory)
+    -   [Get Account Reps ranked by Order Total and Sales Period](#get-account-reps-ranked-by-order-total-and-sales-period)
 -   [Indexes](#indexes)
     -   [Main](#main)
     -   [Gsi1](#gsi1)
--   [Map Attributes](#map-attributes)
+    -   [Gsi2](#gsi2)
 
 ## Table Spec
 
@@ -75,6 +85,26 @@ A DynamoDB table design corresponds to the relational order entry schema that is
         "ReadCapacityUnits": 5,
         "WriteCapacityUnits": 5
       }
+    },
+    {
+      "IndexName": "gsi2",
+      "KeySchema": [
+        {
+          "AttributeName": "GSI-Bucket",
+          "KeyType": "HASH"
+        },
+        {
+          "AttributeName": "Data",
+          "KeyType": "RANGE"
+        }
+      ],
+      "Projection": {
+        "ProjectionType": "ALL"
+      },
+      "ProvisionedThroughput": {
+        "ReadCapacityUnits": 5,
+        "WriteCapacityUnits": 5
+      }
     }
   ]
 }
@@ -119,9 +149,9 @@ Perform a [Get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/
 
 #### Matching Records
 
-| PK           | SK        | Data       | StartDate  |
-| ------------ | --------- | ---------- | ---------- |
-| HR-EMPLOYEE1 | EMPLOYEE1 | John Smith | 01-12-2019 |
+| PK (HASH)    | SK (RANGE) |                      |                           |
+| ------------ | ---------- | -------------------- | ------------------------- |
+| HR-EMPLOYEE1 | EMPLOYEE1  | **Data:** John Smith | **StartDate:** 01-12-2019 |
 
 ### Query Employee Details by Employee Name
 
@@ -145,9 +175,9 @@ Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoD
 
 #### Matching Records
 
-| PK           | SK        | Data       | StartDate  |
-| ------------ | --------- | ---------- | ---------- |
-| HR-EMPLOYEE1 | EMPLOYEE1 | John Smith | 01-12-2019 |
+| SK (HASH) | Data (RANGE) |                      |                           |
+| --------- | ------------ | -------------------- | ------------------------- |
+| EMPLOYEE1 | John Smith   | **PK:** HR-EMPLOYEE1 | **StartDate:** 01-12-2019 |
 
 ### Get an employee's current job details only
 
@@ -170,9 +200,9 @@ Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoD
 
 #### Matching Records
 
-| PK           | SK  | Data                      |
-| ------------ | --- | ------------------------- |
-| HR-EMPLOYEE1 | v0  | Principle Account Manager |
+| PK (HASH)    | SK (RANGE) |                                     |
+| ------------ | ---------- | ----------------------------------- |
+| HR-EMPLOYEE1 | v0         | **Data:** Principle Account Manager |
 
 ### Get Open Orders for a customer for a date range
 
@@ -196,26 +226,298 @@ Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoD
 
 #### Matching Records
 
-| PK        | SK        | Data            | GSI-Bucket |
-| --------- | --------- | --------------- | ---------- |
-| OE-ORDER1 | CUSTOMER1 | OPEN#2019-01-18 | 6          |
+| SK (HASH) | Data (RANGE)    |                   |                          |
+| --------- | --------------- | ----------------- | ------------------------ |
+| CUSTOMER1 | OPEN#2019-01-18 | **PK:** OE-ORDER1 | **GSI-Bucket:** Bucket-6 |
+
+### Show all Orders in OPEN status for a date range across all customers
+
+> Query in parallel for the range \[0..N] to get all shards
+
+Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi2 index with a `#Data BETWEEN :DataMin AND :DataMax` condition on the sort key:
+
+```json
+{
+  "TableName": "HR-Table",
+  "KeyConditionExpression": "#GSI-Bucket = :GSI-Bucket and #Data BETWEEN :DataMin AND :DataMax",
+  "ExpressionAttributeNames": {
+    "#GSI-Bucket": "GSI-Bucket",
+    "#Data": "Data"
+  },
+  "ExpressionAttributeValues": {
+    ":GSI-Bucket": "Bucket-6",
+    ":DataMin": "OPEN#2019-01",
+    ":DataMax": "OPEN#2019-02"
+  },
+  "IndexName": "gsi2"
+}
+```
+
+#### Matching Records
+
+| GSI-Bucket (HASH) | Data (RANGE)    |                   |                   |
+| ----------------- | --------------- | ----------------- | ----------------- |
+| Bucket-6          | OPEN#2019-01-18 | **PK:** OE-ORDER1 | **SK:** CUSTOMER1 |
+
+### All Employees Hired Recently
+
+Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index with a `#Data > :Data` condition on the sort key:
+
+```json
+{
+  "TableName": "HR-Table",
+  "KeyConditionExpression": "#SK = :SK and #Data > :Data",
+  "ExpressionAttributeNames": {
+    "#SK": "SK",
+    "#Data": "Data"
+  },
+  "ExpressionAttributeValues": {
+    ":SK": "HR-CONFIDENTIAL",
+    ":Data": "2019-01-01"
+  },
+  "IndexName": "gsi1"
+}
+```
+
+#### Matching Records
+
+| SK (HASH)       | Data (RANGE) |                      |                          |                   |
+| --------------- | ------------ | -------------------- | ------------------------ | ----------------- |
+| HR-CONFIDENTIAL | 2019-02-12   | **PK:** HR-EMPLOYEE1 | **Employee:** John Smith | **Salary:** 50000 |
+
+### Find all employees in a certain warehouse
+
+Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index:
+
+```json
+{
+  "TableName": "HR-Table",
+  "KeyConditionExpression": "#SK = :SK",
+  "ExpressionAttributeNames": {
+    "#SK": "SK"
+  },
+  "ExpressionAttributeValues": {
+    ":SK": "WAREHOUSE1"
+  },
+  "IndexName": "gsi1"
+}
+```
+
+#### Matching Records
+
+| SK (HASH)  | Data (RANGE) |                      |                               |
+| ---------- | ------------ | -------------------- | ----------------------------- |
+| WAREHOUSE1 | 2019-02-15   | **PK:** HR-EMPLOYEE1 | **Employee Name:** John Smith |
+
+### Get all OrderItems for a Product including warehouse location inventories
+
+Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index with filter params:
+
+```json
+{
+  "TableName": "HR-Table",
+  "KeyConditionExpression": "#SK = :SK",
+  "ExpressionAttributeNames": {
+    "#SK": "SK",
+    "#Warehouse1": "Warehouse1"
+  },
+  "ExpressionAttributeValues": {
+    ":SK": "PRODUCT1"
+  },
+  "IndexName": "gsi1",
+  "FilterExpression": "attribute_exists(#Warehouse1)"
+}
+```
+
+#### Matching Records
+
+| SK (HASH) | Data (RANGE)                 |                     |                    |                    |
+| --------- | ---------------------------- | ------------------- | ------------------ | ------------------ |
+| PRODUCT1  | Quickcrete Cement - 50lb bag | **PK:** OE-PRODUCT1 | **Warehouse1:** 46 | **Warehouse2:** 12 |
+
+### Get customers by Account Rep
+
+Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index with filter params:
+
+```json
+{
+  "TableName": "HR-Table",
+  "KeyConditionExpression": "#SK = :SK",
+  "ExpressionAttributeNames": {
+    "#SK": "SK",
+    "#Address": "Address"
+  },
+  "ExpressionAttributeValues": {
+    ":SK": "EMPLOYEE1"
+  },
+  "IndexName": "gsi1",
+  "FilterExpression": "attribute_exists(#Address)"
+}
+```
+
+#### Matching Records
+
+| SK (HASH) | Data (RANGE)          |                      |                        |
+| --------- | --------------------- | -------------------- | ---------------------- |
+| EMPLOYEE1 | Ace Building Supplies | **PK:** OE-CUSTOMER1 | **Address:** 1600 Penn |
+
+### Get orders by Account Rep and date
+
+> Scatter/Gather to query all statuses (OPEN, PENDING, FULFILLED)
+
+Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index with a `#Data = :Data` condition on the sort key:
+
+```json
+{
+  "TableName": "HR-Table",
+  "KeyConditionExpression": "#SK = :SK and #Data = :Data",
+  "ExpressionAttributeNames": {
+    "#SK": "SK",
+    "#Data": "Data"
+  },
+  "ExpressionAttributeValues": {
+    ":SK": "EMPLOYEE1",
+    ":Data": "OPEN#2019-01-12"
+  },
+  "IndexName": "gsi1"
+}
+```
+
+#### Matching Records
+
+| SK (HASH) | Data (RANGE)    |                   |                      |
+| --------- | --------------- | ----------------- | -------------------- |
+| EMPLOYEE1 | OPEN#2019-01-12 | **PK:** OE-ORDER1 | **OrderTotal:** 2500 |
+
+### Get all employees with specific Job Title
+
+Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index:
+
+```json
+{
+  "TableName": "HR-Table",
+  "KeyConditionExpression": "#SK = :SK",
+  "ExpressionAttributeNames": {
+    "#SK": "SK"
+  },
+  "ExpressionAttributeValues": {
+    ":SK": "v0"
+  },
+  "IndexName": "gsi1"
+}
+```
+
+#### Matching Records
+
+| SK (HASH) | Data (RANGE)              |                      |
+| --------- | ------------------------- | -------------------- |
+| v0        | Principle Account Manager | **PK:** HR-EMPLOYEE1 |
+
+### Get inventory by Product and Warehouse
+
+Perform a [Get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#get-property "Get") against the Main index: 
+
+```json
+{
+  "TableName": "HR-Table",
+  "Key": {
+    "PK": "OE-PRODUCT1",
+    "SK": "PRODUCT1"
+  }
+}
+```
+
+#### Matching Records
+
+| PK (HASH)   | SK (RANGE) |                                        |                    |                    |
+| ----------- | ---------- | -------------------------------------- | ------------------ | ------------------ |
+| OE-PRODUCT1 | PRODUCT1   | **Data:** Quickcrete Cement - 50lb bag | **Warehouse1:** 46 | **Warehouse2:** 12 |
+
+### Get total product inventory
+
+Perform a [Get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#get-property "Get") against the Main index: 
+
+```json
+{
+  "TableName": "HR-Table",
+  "Key": {
+    "PK": "OE-PRODUCT1",
+    "SK": "PRODUCT1"
+  }
+}
+```
+
+#### Matching Records
+
+| PK (HASH)   | SK (RANGE) |                                        |                    |                    |
+| ----------- | ---------- | -------------------------------------- | ------------------ | ------------------ |
+| OE-PRODUCT1 | PRODUCT1   | **Data:** Quickcrete Cement - 50lb bag | **Warehouse1:** 46 | **Warehouse2:** 12 |
+
+### Get Account Reps ranked by Order Total and Sales Period
+
+Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index:
+
+```json
+{
+  "TableName": "HR-Table",
+  "KeyConditionExpression": "#SK = :SK",
+  "ExpressionAttributeNames": {
+    "#SK": "SK"
+  },
+  "ExpressionAttributeValues": {
+    ":SK": "2018-Q4"
+  },
+  "ScanIndexFoward": false,
+  "IndexName": "gsi1"
+}
+```
+
+#### Matching Records
+
+| SK (HASH) | Data (RANGE) |                      |                               |
+| --------- | ------------ | -------------------- | ----------------------------- |
+| 2018-Q4   | 10000        | **PK:** HR-EMPLOYEE2 | **Employee Name:** John Smith |
+| 2018-Q4   | 5000         | **PK:** HR-EMPLOYEE1 | **Employee Name:** John Smith |
 
 ## Indexes
 
 ### Main
 
-| PK (HASH)    | SK (RANGE) |                                     |                           |
-| ------------ | ---------- | ----------------------------------- | ------------------------- |
-| HR-EMPLOYEE1 | EMPLOYEE1  | **Data:** John Smith                | **StartDate:** 01-12-2019 |
-| HR-EMPLOYEE1 | v0         | **Data:** Principle Account Manager |                           |
-| OE-ORDER1    | CUSTOMER1  | **Data:** OPEN#2019-01-18           | **GSI-Bucket:** 6         |
+| PK (HASH)    | SK (RANGE)      |                                        |                               |                       |
+| ------------ | --------------- | -------------------------------------- | ----------------------------- | --------------------- |
+| HR-EMPLOYEE1 | EMPLOYEE1       | **Data:** John Smith                   | **StartDate:** 01-12-2019     |                       |
+| HR-EMPLOYEE1 | v0              | **Data:** Principle Account Manager    |                               |                       |
+| HR-EMPLOYEE1 | HR-CONFIDENTIAL | **Data:** 2019-02-12                   | **Employee:** John Smith      | **Salary:** 50000     |
+| HR-EMPLOYEE1 | WAREHOUSE1      | **Data:** 2019-02-15                   | **Employee Name:** John Smith |                       |
+| HR-EMPLOYEE1 | 2018-Q4         | **Data:** 5000                         | **Employee Name:** John Smith |                       |
+| HR-EMPLOYEE2 | 2018-Q4         | **Data:** 10000                        | **Employee Name:** John Smith |                       |
+| OE-ORDER1    | CUSTOMER1       | **Data:** OPEN#2019-01-18              | **GSI-Bucket:** Bucket-6      |                       |
+| OE-ORDER1    | PRODUCT1        | **Data:** OPEN#2019-01-18              | **GSI-Bucket:** Bucket-4      | **UnitPrice:** $89.99 |
+| OE-ORDER1    | EMPLOYEE1       | **Data:** OPEN#2019-01-12              | **OrderTotal:** 2500          |                       |
+| OE-PRODUCT1  | PRODUCT1        | **Data:** Quickcrete Cement - 50lb bag | **Warehouse1:** 46            | **Warehouse2:** 12    |
+| OE-CUSTOMER1 | CUSTOMER1       | **Data:** Ace Building Supplies        | **Address:** 1600 Penn        |                       |
+| OE-CUSTOMER1 | EMPLOYEE1       | **Data:** Ace Building Supplies        | **Address:** 1600 Penn        |                       |
 
 ### Gsi1
 
-| SK (HASH) | Data (RANGE)              |                      |                           |
-| --------- | ------------------------- | -------------------- | ------------------------- |
-| EMPLOYEE1 | John Smith                | **PK:** HR-EMPLOYEE1 | **StartDate:** 01-12-2019 |
-| v0        | Principle Account Manager | **PK:** HR-EMPLOYEE1 |                           |
-| CUSTOMER1 | OPEN#2019-01-18           | **PK:** OE-ORDER1    | **GSI-Bucket:** 6         |
+| SK (HASH)       | Data (RANGE)                 |                      |                               |                       |
+| --------------- | ---------------------------- | -------------------- | ----------------------------- | --------------------- |
+| EMPLOYEE1       | John Smith                   | **PK:** HR-EMPLOYEE1 | **StartDate:** 01-12-2019     |                       |
+| v0              | Principle Account Manager    | **PK:** HR-EMPLOYEE1 |                               |                       |
+| HR-CONFIDENTIAL | 2019-02-12                   | **PK:** HR-EMPLOYEE1 | **Employee:** John Smith      | **Salary:** 50000     |
+| WAREHOUSE1      | 2019-02-15                   | **PK:** HR-EMPLOYEE1 | **Employee Name:** John Smith |                       |
+| 2018-Q4         | 5000                         | **PK:** HR-EMPLOYEE1 | **Employee Name:** John Smith |                       |
+| 2018-Q4         | 10000                        | **PK:** HR-EMPLOYEE2 | **Employee Name:** John Smith |                       |
+| CUSTOMER1       | OPEN#2019-01-18              | **PK:** OE-ORDER1    | **GSI-Bucket:** Bucket-6      |                       |
+| PRODUCT1        | OPEN#2019-01-18              | **PK:** OE-ORDER1    | **GSI-Bucket:** Bucket-4      | **UnitPrice:** $89.99 |
+| EMPLOYEE1       | OPEN#2019-01-12              | **PK:** OE-ORDER1    | **OrderTotal:** 2500          |                       |
+| PRODUCT1        | Quickcrete Cement - 50lb bag | **PK:** OE-PRODUCT1  | **Warehouse1:** 46            | **Warehouse2:** 12    |
+| CUSTOMER1       | Ace Building Supplies        | **PK:** OE-CUSTOMER1 | **Address:** 1600 Penn        |                       |
+| EMPLOYEE1       | Ace Building Supplies        | **PK:** OE-CUSTOMER1 | **Address:** 1600 Penn        |                       |
 
-## Map Attributes
+### Gsi2
+
+| GSI-Bucket (HASH) | Data (RANGE)    |                   |                   |                       |
+| ----------------- | --------------- | ----------------- | ----------------- | --------------------- |
+| Bucket-6          | OPEN#2019-01-18 | **PK:** OE-ORDER1 | **SK:** CUSTOMER1 |                       |
+| Bucket-4          | OPEN#2019-01-18 | **PK:** OE-ORDER1 | **SK:** PRODUCT1  | **UnitPrice:** $89.99 |

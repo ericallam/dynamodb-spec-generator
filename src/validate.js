@@ -65,6 +65,9 @@ const keywordMessageBuilders = {
       error.params.allowedValues,
       ", "
     )}`;
+  },
+  additionalProperties: error => {
+    return `${defaultErrorBuilder(error)}: ${_.join(_.values(error.params))}`;
   }
 };
 
