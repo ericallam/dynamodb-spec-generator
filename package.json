@@ -35,7 +35,7 @@
     "testEnvironment": "node"
   },
   "bin": {
-    "generate-dynamo-spec": "./bin/run"
+    "dynamodb-spec-generator": "./bin/run"
   },
   "oclif": {
     "bin": "dynamodb-spec-generator"
