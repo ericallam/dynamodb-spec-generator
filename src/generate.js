@@ -9,28 +9,6 @@ const h = (depth, value) => u("heading", { depth }, [t(value)]);
 const p = value => u("paragraph", [u("text", { value })]);
 const t = value => u("text", { value });
 
-const resolveAttributeType = attribute => attribute.type;
-
-const resolveAttributeDefinitions = spec => {
-  return Object.keys(spec.attributes).reduce((result, name) => {
-    return result.concat({
-      AttributeName: name,
-      AttributeType: resolveAttributeType(spec.attributes[name])
-    });
-  }, []);
-};
-
-const resolveIndexKeySchema = (spec, indexName) => {
-  const indexSpec = spec.indexes[indexName];
-
-  return _.compact([
-    indexSpec.partition
-      ? { AttributeName: indexSpec.partition, KeyType: "HASH" }
-      : null,
-    indexSpec.sort ? { AttributeName: indexSpec.sort, KeyType: "RANGE" } : null
-  ]);
-};
-
 const collapsibleSection = (summary, content) => {
   const frontMatter = [
     u("html", {
@@ -87,45 +65,8 @@ const generateTableUsageSection = spec => {
   ];
 };
 
-const resolveIndexProjection = index => {
-  const { projection } = index;
-
-  if (typeof projection === "string") {
-    return { ProjectionType: _.toUpper(projection) };
-  }
-
-  return { ProjectionType: "INCLUDE", NonKeyAttributes: projection };
-};
-
 const generateTableSpec = spec => {
-  const tableSpec = {
-    AttributeDefinitions: resolveAttributeDefinitions(spec),
-    TableName: spec.tableName,
-    KeySchema: resolveIndexKeySchema(spec, "main"),
-    ProvisionedThroughput: {
-      ReadCapacityUnits: 5,
-      WriteCapacityUnits: 5
-    },
-    BillingMode: "PAY_PER_REQUEST"
-  };
-
-  Object.keys(spec.indexes)
-    .filter(key => spec.indexes[key].type === "global")
-    .forEach(key => {
-      const index = spec.indexes[key];
-
-      tableSpec.GlobalSecondaryIndexes = tableSpec.GlobalSecondaryIndexes || [];
-
-      tableSpec.GlobalSecondaryIndexes.push({
-        IndexName: key,
-        KeySchema: resolveIndexKeySchema(spec, key),
-        Projection: resolveIndexProjection(index),
-        ProvisionedThroughput: {
-          ReadCapacityUnits: 5,
-          WriteCapacityUnits: 5
-        }
-      });
-    });
+  const tableSpec = spec.tableDefinition;
 
   const header = [h(2, "Table Spec")];
 
@@ -138,20 +79,20 @@ const externalLinks = {
   query: u(
     "link",
     {
-      title: "Query",
+      title: "DocumentClient.query",
       url:
         "http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property"
     },
-    [t("Query")]
+    [t("DocumentClient.query")]
   ),
   get: u(
     "link",
     {
-      title: "Get",
+      title: "DocumentClient.get",
       url:
         "http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#get-property"
     },
-    [t("Get")]
+    [t("DocumentClient.get")]
   )
 };
 
@@ -847,6 +788,70 @@ const generateAST = spec => {
   return root;
 };
 
+const normalizeTableDefinition = spec => {
+  const normalizedSpec = { ...spec };
+  const {
+    tableDefinition: {
+      TableName,
+      AttributeDefinitions,
+      KeySchema,
+      GlobalSecondaryIndexes
+    }
+  } = spec;
+
+  normalizedSpec.tableName = TableName;
+  normalizedSpec.attributes = AttributeDefinitions.reduce(
+    (memo, definition) => {
+      memo[definition.AttributeName] = { type: definition.AttributeType };
+      return memo;
+    },
+    {}
+  );
+
+  normalizedSpec.indexes = {
+    main: KeySchema.reduce((memo, key) => {
+      memo[key.KeyType === "HASH" ? "partition" : "sort"] = key.AttributeName;
+      return memo;
+    }, {})
+  };
+
+  if (GlobalSecondaryIndexes) {
+    GlobalSecondaryIndexes.forEach(index => {
+      normalizedSpec.indexes[index.IndexName] = index.KeySchema.reduce(
+        (memo, key) => {
+          memo[key.KeyType === "HASH" ? "partition" : "sort"] =
+            key.AttributeName;
+          return memo;
+        },
+        {}
+      );
+
+      if (!index.Projection) {
+        normalizedSpec.indexes[index.IndexName].projection = "all";
+      } else {
+        normalizedSpec.indexes[index.IndexName].projection = _.toLower(
+          index.Projection.ProjectionType
+        );
+
+        if (index.Projection.NonKeyAttributes) {
+          normalizedSpec.indexes[index.IndexName].projectionKeys =
+            index.Projection.NonKeyAttributes;
+        }
+      }
+    });
+  }
+
+  return normalizedSpec;
+};
+
+const preprocessSpec = generate => spec => {
+  if (spec.tableDefinition) {
+    return generate(normalizeTableDefinition(spec));
+  }
+
+  return generate(spec);
+};
+
 module.exports = {
-  generateAST
+  generateAST: preprocessSpec(generateAST)
 };

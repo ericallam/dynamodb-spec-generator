@@ -25,6 +25,7 @@ Documentation for the DynamoDB table
 
 \`\`\`json
 {
+  \\"TableName\\": \\"solveless-api\\",
   \\"AttributeDefinitions\\": [
     {
       \\"AttributeName\\": \\"pk\\",
@@ -35,7 +36,6 @@ Documentation for the DynamoDB table
       \\"AttributeType\\": \\"S\\"
     }
   ],
-  \\"TableName\\": \\"solveless-api\\",
   \\"KeySchema\\": [
     {
       \\"AttributeName\\": \\"pk\\",
@@ -79,11 +79,56 @@ service.createTable(tableJson, (err, data) => {
 
 ### Get user profile info
 
-_coming soon_
+Perform a [DocumentClient.get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#get-property \\"DocumentClient.get\\") against the Main index: 
+
+\`\`\`json
+{
+  \\"TableName\\": \\"solveless-api\\",
+  \\"Key\\": {
+    \\"pk\\": \\"user-6549\\",
+    \\"sk\\": \\"metadata:user-6549\\"
+  }
+}
+\`\`\`
+
+#### Matching Records
+
+| pk (HASH) | sk (RANGE)         |                       |                  |                     |                                         |
+| --------- | ------------------ | --------------------- | ---------------- | ------------------- | --------------------------------------- |
+| user-6549 | metadata:user-6549 | **currentPoints:** 87 | **winCount:** 54 | **playedCount:** 65 | **profile:** \`{\\"avatar\\":\\"https://... }\` |
 
 ### Get user available episodes
 
-_coming soon_
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property \\"DocumentClient.query\\") against the Main index with a \`#sk = :sk\` condition on the sort key with filter params:
+
+\`\`\`json
+{
+  \\"TableName\\": \\"solveless-api\\",
+  \\"KeyConditionExpression\\": \\"#pk = :pk and #sk = :sk\\",
+  \\"ExpressionAttributeNames\\": {
+    \\"#pk\\": \\"pk\\",
+    \\"#sk\\": \\"sk\\",
+    \\"#releaseDate\\": \\"releaseDate\\",
+    \\"#status\\": \\"status\\",
+    \\"#title\\": \\"title\\"
+  },
+  \\"ExpressionAttributeValues\\": {
+    \\":pk\\": \\"user-6549\\",
+    \\":sk\\": \\"episode:available\\",
+    \\":releaseDate\\": \\"01-12-2019\\",
+    \\":status0\\": \\"READY\\",
+    \\":status1\\": \\"PUBLISHED\\",
+    \\":title\\": 3
+  },
+  \\"FilterExpression\\": \\"#releaseDate <= :releaseDate AND #status IN (:status0, :status1) AND size(#title) >= :title\\"
+}
+\`\`\`
+
+#### Matching Records
+
+| pk (HASH) | sk (RANGE)        |                             |                   |                              |
+| --------- | ----------------- | --------------------------- | ----------------- | ---------------------------- |
+| user-6549 | episode:available | **releaseDate:** 01-01-2019 | **status:** READY | **title:** The Mafia Problem |
 
 ## Indexes
 
@@ -126,6 +171,7 @@ Documentation for the DynamoDB table
 
 \`\`\`json
 {
+  \\"TableName\\": \\"solveless-api\\",
   \\"AttributeDefinitions\\": [
     {
       \\"AttributeName\\": \\"pk\\",
@@ -136,7 +182,6 @@ Documentation for the DynamoDB table
       \\"AttributeType\\": \\"S\\"
     }
   ],
-  \\"TableName\\": \\"solveless-api\\",
   \\"KeySchema\\": [
     {
       \\"AttributeName\\": \\"pk\\",
@@ -145,6 +190,21 @@ Documentation for the DynamoDB table
     {
       \\"AttributeName\\": \\"sk\\",
       \\"KeyType\\": \\"RANGE\\"
+    }
+  ],
+  \\"GlobalSecondaryIndexes\\": [
+    {
+      \\"IndexName\\": \\"gsi1\\",
+      \\"KeySchema\\": [
+        {
+          \\"AttributeName\\": \\"status\\",
+          \\"KeyType\\": \\"HASH\\"
+        },
+        {
+          \\"AttributeName\\": \\"sk\\",
+          \\"KeyType\\": \\"RANGE\\"
+        }
+      ]
     }
   ],
   \\"ProvisionedThroughput\\": {
@@ -180,11 +240,56 @@ service.createTable(tableJson, (err, data) => {
 
 ### Get user profile info
 
-_coming soon_
+Perform a [DocumentClient.get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#get-property \\"DocumentClient.get\\") against the Main index: 
+
+\`\`\`json
+{
+  \\"TableName\\": \\"solveless-api\\",
+  \\"Key\\": {
+    \\"pk\\": \\"user-6549\\",
+    \\"sk\\": \\"metadata:user-6549\\"
+  }
+}
+\`\`\`
+
+#### Matching Records
+
+| pk (HASH) | sk (RANGE)         |                       |                  |                     |                                         |
+| --------- | ------------------ | --------------------- | ---------------- | ------------------- | --------------------------------------- |
+| user-6549 | metadata:user-6549 | **currentPoints:** 87 | **winCount:** 54 | **playedCount:** 65 | **profile:** \`{\\"avatar\\":\\"https://... }\` |
 
 ### Get user available episodes
 
-_coming soon_
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property \\"DocumentClient.query\\") against the Main index with a \`#sk = :sk\` condition on the sort key with filter params:
+
+\`\`\`json
+{
+  \\"TableName\\": \\"solveless-api\\",
+  \\"KeyConditionExpression\\": \\"#pk = :pk and #sk = :sk\\",
+  \\"ExpressionAttributeNames\\": {
+    \\"#pk\\": \\"pk\\",
+    \\"#sk\\": \\"sk\\",
+    \\"#releaseDate\\": \\"releaseDate\\",
+    \\"#status\\": \\"status\\",
+    \\"#title\\": \\"title\\"
+  },
+  \\"ExpressionAttributeValues\\": {
+    \\":pk\\": \\"user-6549\\",
+    \\":sk\\": \\"episode:available\\",
+    \\":releaseDate\\": \\"01-12-2019\\",
+    \\":status0\\": \\"READY\\",
+    \\":status1\\": \\"PUBLISHED\\",
+    \\":title\\": 3
+  },
+  \\"FilterExpression\\": \\"#releaseDate <= :releaseDate AND #status IN (:status0, :status1) AND size(#title) >= :title\\"
+}
+\`\`\`
+
+#### Matching Records
+
+| pk (HASH) | sk (RANGE)        |                             |                   |                              |
+| --------- | ----------------- | --------------------------- | ----------------- | ---------------------------- |
+| user-6549 | episode:available | **releaseDate:** 01-01-2019 | **status:** READY | **title:** The Mafia Problem |
 
 ## Indexes
 

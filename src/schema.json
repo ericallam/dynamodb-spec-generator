@@ -9,12 +9,35 @@
       "description": "The name of the service",
       "type": "string"
     },
-    "tableName": {
-      "description": "The name of the DynamoDB table",
-      "type": "string",
-      "minLength": 3,
-      "maxLength": 255,
-      "pattern": "^[a-zA-Z0-9._-]*$"
+    "tableDefinition": {
+      "type": "object",
+      "required": ["AttributeDefinitions", "TableName", "KeySchema"],
+      "properties": {
+        "AttributeDefinitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/dynamodb/AttributeDefinition"
+          },
+          "minItems": 1
+        },
+        "TableName": {
+          "description": "The name of the DynamoDB table",
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 255,
+          "pattern": "^[a-zA-Z0-9._-]*$"
+        },
+        "KeySchema": {
+          "$ref": "#/dynamodb/KeySchema"
+        },
+        "GlobalSecondaryIndexes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/dynamodb/GlobalSecondaryIndex"
+          },
+          "minItems": 1
+        }
+      }
     },
     "version": {
       "description": "The version of this spec",
@@ -26,33 +49,6 @@
     "author": {
       "description": "The author of this spec",
       "type": "string"
-    },
-    "attributes": {
-      "description": "attribute definitions in DynamoDB format",
-      "type": "object",
-      "minProperties": 1,
-      "patternProperties": {
-        "^[A-Za-z]+$": {
-          "$ref": "#/definitions/primaryKeyAttribute"
-        }
-      }
-    },
-    "indexes": {
-      "type": "object",
-      "description": "describes the table indexes, including the main index",
-      "minProperties": 1,
-      "properties": {
-        "main": {
-          "description": "describes the primary key attributes for the main table",
-          "$ref": "#/definitions/mainIndex"
-        }
-      },
-      "patternProperties": {
-        "^[A-Za-z0-9]+$": {
-          "$ref": "#/definitions/secondaryIndex"
-        }
-      },
-      "required": ["main"]
     },
     "accessPatterns": {
       "type": "array",
@@ -67,68 +63,78 @@
       }
     }
   },
-  "required": ["service", "tableName", "attributes", "indexes"],
-  "definitions": {
-    "record": {
+  "required": ["service", "tableDefinition"],
+  "dynamodb": {
+    "AttributeDefinition": {
       "type": "object",
-      "required": { "$data": "/_meta/primaryKeys" }
-    },
-    "primaryKeyAttribute": {
-      "type": "object",
-      "description": "A DynamoDB primary key attribute definition",
+      "required": ["AttributeName", "AttributeType"],
+      "additionalProperties": false,
       "properties": {
-        "type": {
+        "AttributeName": {
+          "$ref": "#/definitions/attributeName"
+        },
+        "AttributeType": {
           "type": "string",
           "enum": ["S", "N", "B"]
         }
-      },
-      "required": ["type"],
-      "additionalProperties": false
+      }
     },
-    "mainIndex": {
+    "KeySchema": {
+      "type": "array",
+      "items": {
+        "$ref": "#/dynamodb/KeySchemaAttribute"
+      },
+      "minItems": 1,
+      "maxItems": 2
+    },
+    "KeySchemaAttribute": {
       "type": "object",
+      "required": ["AttributeName", "KeyType"],
+      "additionalProperties": false,
       "properties": {
-        "partition": {
-          "description": "name of the partition (HASH) attribute",
+        "AttributeName": {
           "$ref": "#/definitions/attributeName"
         },
-        "sort": {
-          "description": "name of the sort (RANGE) attribute",
-          "$ref": "#/definitions/attributeName"
-        }
-      },
-      "required": ["partition"],
-      "additionalProperties": false
-    },
-    "secondaryIndex": {
-      "type": "object",
-      "properties": {
-        "type": {
+        "KeyType": {
           "type": "string",
-          "enum": ["global", "local"]
+          "enum": ["HASH", "RANGE"]
+        }
+      }
+    },
+    "GlobalSecondaryIndex": {
+      "type": "object",
+      "required": ["IndexName", "KeySchema"],
+      "properties": {
+        "IndexName": {
+          "description": "The name of the Global Secondary Index",
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 255,
+          "pattern": "^[a-zA-Z0-9._-]*$"
         },
-        "partition": {
-          "description": "name of the partition (HASH) attribute",
-          "$ref": "#/definitions/attributeName"
+        "KeySchema": {
+          "$ref": "#/dynamodb/KeySchema"
         },
-        "sort": {
-          "description": "name of the sort (RANGE) attribute",
-          "$ref": "#/definitions/attributeName"
-        },
-        "projection": {
+        "Projection": {
           "oneOf": [
             {
-              "type": "string",
-              "enum": ["all", "keys_only"]
+              "type": "object",
+              "properties": {
+                "ProjectionType": {
+                  "type": "string",
+                  "enum": ["ALL", "KEYS_ONLY"]
+                }
+              },
+              "required": ["ProjectionType"]
             },
             {
               "type": "object",
               "properties": {
-                "type": {
+                "ProjectionType": {
                   "type": "string",
-                  "enum": ["all", "keys_only", "include"]
+                  "enum": ["INCLUDE"]
                 },
-                "keys": {
+                "NonKeyAttributes": {
                   "type": "array",
                   "items": {
                     "$ref": "#/definitions/attributeName"
@@ -137,13 +143,17 @@
                   "minItems": 1
                 }
               },
-              "required": ["type"]
+              "required": ["ProjectionType", "NonKeyAttributes"]
             }
           ]
         }
-      },
-      "additionalProperties": false,
-      "required": ["partition", "sort"]
+      }
+    }
+  },
+  "definitions": {
+    "record": {
+      "type": "object",
+      "required": { "$data": "/_meta/primaryKeys" }
     },
     "accessPattern": {
       "type": "object",

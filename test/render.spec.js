@@ -3,16 +3,29 @@ const { renderMarkdown } = require("../src/render");
 it("renders correcly", () => {
   const spec = {
     service: "Solve API",
-    tableName: "solveless-api",
     description: "Documentation for the DynamoDB table",
-    attributes: { pk: { type: "S" }, sk: { type: "S" } },
-    indexes: { main: { partition: "pk", sort: "sk" } },
+    tableDefinition: {
+      TableName: "solveless-api",
+      AttributeDefinitions: [
+        { AttributeName: "pk", AttributeType: "S" },
+        { AttributeName: "sk", AttributeType: "S" }
+      ],
+      KeySchema: [
+        { AttributeName: "pk", KeyType: "HASH" },
+        { AttributeName: "sk", KeyType: "RANGE" }
+      ],
+      ProvisionedThroughput: {
+        ReadCapacityUnits: 5,
+        WriteCapacityUnits: 5
+      },
+      BillingMode: "PAY_PER_REQUEST"
+    },
     accessPatterns: [
       {
         title: "Get user profile info",
         index: "main",
         type: "get",
-        condition: {
+        params: {
           sort: { value: "metadata:user-6549" },
           partition: { value: "user-6549" }
         }
@@ -21,7 +34,7 @@ it("renders correcly", () => {
         title: "Get user available episodes",
         index: "main",
         type: "query",
-        condition: {
+        params: {
           sort: { value: "episode:available", operator: "=" },
           partition: { value: "user-6549" },
           filters: [
@@ -71,19 +84,38 @@ it("renders correcly", () => {
 it("renders sparse indexes correcly", () => {
   const spec = {
     service: "Solve API",
-    tableName: "solveless-api",
     description: "Documentation for the DynamoDB table",
-    attributes: { pk: { type: "S" }, sk: { type: "S" } },
-    indexes: {
-      main: { partition: "pk", sort: "sk" },
-      gsi1: { partition: "status", sort: "sk" }
+    tableDefinition: {
+      TableName: "solveless-api",
+      AttributeDefinitions: [
+        { AttributeName: "pk", AttributeType: "S" },
+        { AttributeName: "sk", AttributeType: "S" }
+      ],
+      KeySchema: [
+        { AttributeName: "pk", KeyType: "HASH" },
+        { AttributeName: "sk", KeyType: "RANGE" }
+      ],
+      GlobalSecondaryIndexes: [
+        {
+          IndexName: "gsi1",
+          KeySchema: [
+            { AttributeName: "status", KeyType: "HASH" },
+            { AttributeName: "sk", KeyType: "RANGE" }
+          ]
+        }
+      ],
+      ProvisionedThroughput: {
+        ReadCapacityUnits: 5,
+        WriteCapacityUnits: 5
+      },
+      BillingMode: "PAY_PER_REQUEST"
     },
     accessPatterns: [
       {
         title: "Get user profile info",
         index: "main",
         type: "get",
-        condition: {
+        params: {
           sort: { value: "metadata:user-6549" },
           partition: { value: "user-6549" }
         }
@@ -92,7 +124,7 @@ it("renders sparse indexes correcly", () => {
         title: "Get user available episodes",
         index: "main",
         type: "query",
-        condition: {
+        params: {
           sort: { value: "episode:available", operator: "=" },
           partition: { value: "user-6549" },
           filters: [

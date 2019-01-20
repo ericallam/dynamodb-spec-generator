@@ -1,37 +1,81 @@
 {
-  "tableName": "HR-Table",
   "service": "HR Api Backend",
   "version": "1.0.0",
   "description": "A recreation of the Relational Modeling example in the DynamoDB Docs",
   "author": "Eric Allam",
-  "attributes": {
-    "PK": {
-      "type": "S"
+  "tableDefinition": {
+    "TableName": "HR-Table",
+    "KeySchema": [
+      {
+        "AttributeName": "PK",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "SK",
+        "KeyType": "RANGE"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "PK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "SK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "Data",
+        "AttributeType": "S"
+      }
+    ],
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 5,
+      "WriteCapacityUnits": 5
     },
-    "SK": {
-      "type": "S"
-    },
-    "Data": {
-      "type": "S"
-    }
-  },
-  "indexes": {
-    "main": {
-      "partition": "PK",
-      "sort": "SK"
-    },
-    "gsi1": {
-      "partition": "SK",
-      "sort": "Data",
-      "type": "global",
-      "projection": "all"
-    },
-    "gsi2": {
-      "partition": "GSI-Bucket",
-      "sort": "Data",
-      "type": "global",
-      "projection": "all"
-    }
+    "BillingMode": "PAY_PER_REQUEST",
+    "GlobalSecondaryIndexes": [
+      {
+        "IndexName": "gsi1",
+        "KeySchema": [
+          {
+            "AttributeName": "SK",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "Data",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "gsi2",
+        "KeySchema": [
+          {
+            "AttributeName": "GSI-Bucket",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "Data",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      }
+    ]
   },
   "accessPatterns": [
     {
