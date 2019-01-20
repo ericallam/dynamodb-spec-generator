@@ -1,6 +1,6 @@
 # dynamodb-spec-generator ![Badge Version 0.0.1](https://img.shields.io/badge/version-v0.0.1-orange.svg)
 
-A command line tool to generate documentation for a DynamoDB table and its access patterns.
+A command line tool to generate documentation for a DynamoDB table and its access patterns, to assign in the design phase of a well-factored DynamoDB table
 
 ## Table of Contents
 
@@ -72,37 +72,83 @@ This example attempts to recreate the [DynamoDB docs](https://docs.aws.amazon.co
 
 ```json
 {
-  "tableName": "HR-Table",
   "service": "HR Api Backend",
-  "description": "A DynamoDB table design corresponds to the relational order entry schema that is shown in Relational Modeling",
-  "attributes": {
-    "PK": {
-      "type": "S"
+  "version": "1.0.0",
+  "description": "A recreation of the Relational Modeling example in the DynamoDB Docs",
+  "author": "Eric Allam",
+  "tableDefinition": {
+    "TableName": "HR-Table",
+    "KeySchema": [
+      {
+        "AttributeName": "PK",
+        "KeyType": "HASH"
+      },
+      {
+        "AttributeName": "SK",
+        "KeyType": "RANGE"
+      }
+    ],
+    "AttributeDefinitions": [
+      {
+        "AttributeName": "PK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "SK",
+        "AttributeType": "S"
+      },
+      {
+        "AttributeName": "Data",
+        "AttributeType": "S"
+      }
+    ],
+    "ProvisionedThroughput": {
+      "ReadCapacityUnits": 5,
+      "WriteCapacityUnits": 5
     },
-    "SK": {
-      "type": "S"
-    },
-    "Data": {
-      "type": "S"
-    }
-  },
-  "indexes": {
-    "main": {
-      "partition": "PK",
-      "sort": "SK"
-    },
-    "gsi1": {
-      "partition": "SK",
-      "sort": "Data",
-      "type": "global",
-      "projection": "all"
-    },
-    "gsi2": {
-      "partition": "GSI-Bucket",
-      "sort": "Data",
-      "type": "global",
-      "projection": "all"
-    }
+    "BillingMode": "PAY_PER_REQUEST",
+    "GlobalSecondaryIndexes": [
+      {
+        "IndexName": "gsi1",
+        "KeySchema": [
+          {
+            "AttributeName": "SK",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "Data",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      },
+      {
+        "IndexName": "gsi2",
+        "KeySchema": [
+          {
+            "AttributeName": "GSI-Bucket",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "Data",
+            "KeyType": "RANGE"
+          }
+        ],
+        "Projection": {
+          "ProjectionType": "ALL"
+        },
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 5,
+          "WriteCapacityUnits": 5
+        }
+      }
+    ]
   },
   "accessPatterns": [
     {
@@ -367,6 +413,17 @@ A recreation of the Relational Modeling example in the DynamoDB Docs
 
 ```json
 {
+  "TableName": "HR-Table",
+  "KeySchema": [
+    {
+      "AttributeName": "PK",
+      "KeyType": "HASH"
+    },
+    {
+      "AttributeName": "SK",
+      "KeyType": "RANGE"
+    }
+  ],
   "AttributeDefinitions": [
     {
       "AttributeName": "PK",
@@ -379,17 +436,6 @@ A recreation of the Relational Modeling example in the DynamoDB Docs
     {
       "AttributeName": "Data",
       "AttributeType": "S"
-    }
-  ],
-  "TableName": "HR-Table",
-  "KeySchema": [
-    {
-      "AttributeName": "PK",
-      "KeyType": "HASH"
-    },
-    {
-      "AttributeName": "SK",
-      "KeyType": "RANGE"
     }
   ],
   "ProvisionedThroughput": {
@@ -466,7 +512,7 @@ service.createTable(tableJson, (err, data) => {
 
 ### Look up Employee Details by Employee ID
 
-Perform a [Get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#get-property "Get") against the Main index:
+Perform a [DocumentClient.get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#get-property "DocumentClient.get") against the Main index:
 
 ```json
 {
@@ -486,7 +532,7 @@ Perform a [Get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/
 
 ### Query Employee Details by Employee Name
 
-Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index with a `begins_with(#Data, :Data)` condition on the sort key:
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "DocumentClient.query") against the Gsi1 index with a `begins_with(#Data, :Data)` condition on the sort key:
 
 ```json
 {
@@ -512,7 +558,7 @@ Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoD
 
 ### Get an employee's current job details only
 
-Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Main index with a `begins_with(#SK, :SK)` condition on the sort key:
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "DocumentClient.query") against the Main index with a `begins_with(#SK, :SK)` condition on the sort key:
 
 ```json
 {
@@ -537,7 +583,7 @@ Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoD
 
 ### Get Open Orders for a customer for a date range
 
-Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index with a `begins_with(#Data, :Data)` condition on the sort key:
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "DocumentClient.query") against the Gsi1 index with a `begins_with(#Data, :Data)` condition on the sort key:
 
 ```json
 {
@@ -565,7 +611,7 @@ Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoD
 
 > Query in parallel for the range \[0..N] to get all shards
 
-Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi2 index with a `#Data BETWEEN :DataMin AND :DataMax` condition on the sort key:
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "DocumentClient.query") against the Gsi2 index with a `#Data BETWEEN :DataMin AND :DataMax` condition on the sort key:
 
 ```json
 {
@@ -592,7 +638,7 @@ Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoD
 
 ### All Employees Hired Recently
 
-Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index with a `#Data > :Data` condition on the sort key:
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "DocumentClient.query") against the Gsi1 index with a `#Data > :Data` condition on the sort key:
 
 ```json
 {
@@ -618,7 +664,7 @@ Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoD
 
 ### Find all employees in a certain warehouse
 
-Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index:
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "DocumentClient.query") against the Gsi1 index:
 
 ```json
 {
@@ -642,7 +688,7 @@ Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoD
 
 ### Get all OrderItems for a Product including warehouse location inventories
 
-Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index with filter params:
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "DocumentClient.query") against the Gsi1 index with filter params:
 
 ```json
 {
@@ -668,7 +714,7 @@ Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoD
 
 ### Get customers by Account Rep
 
-Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index with filter params:
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "DocumentClient.query") against the Gsi1 index with filter params:
 
 ```json
 {
@@ -696,7 +742,7 @@ Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoD
 
 > Scatter/Gather to query all statuses (OPEN, PENDING, FULFILLED)
 
-Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index with a `#Data = :Data` condition on the sort key:
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "DocumentClient.query") against the Gsi1 index with a `#Data = :Data` condition on the sort key:
 
 ```json
 {
@@ -722,7 +768,7 @@ Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoD
 
 ### Get all employees with specific Job Title
 
-Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index:
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "DocumentClient.query") against the Gsi1 index:
 
 ```json
 {
@@ -746,7 +792,7 @@ Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoD
 
 ### Get inventory by Product and Warehouse
 
-Perform a [Get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#get-property "Get") against the Main index:
+Perform a [DocumentClient.get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#get-property "DocumentClient.get") against the Main index:
 
 ```json
 {
@@ -766,7 +812,7 @@ Perform a [Get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/
 
 ### Get total product inventory
 
-Perform a [Get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#get-property "Get") against the Main index:
+Perform a [DocumentClient.get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#get-property "DocumentClient.get") against the Main index:
 
 ```json
 {
@@ -786,7 +832,7 @@ Perform a [Get](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/
 
 ### Get Account Reps ranked by Order Total and Sales Period
 
-Perform a [Query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "Query") against the Gsi1 index:
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property "DocumentClient.query") against the Gsi1 index:
 
 ```json
 {
@@ -863,6 +909,8 @@ Spec authored by Eric Allam and generated by [dynamodb-spec-generator](https://g
 
 ## TODO
 
+- Ability to use a live table
+- Code generation
 - Link to the Indexes in the Access Pattern descriptions
 - Query projection
 - Query attributes to get
@@ -871,3 +919,4 @@ Spec authored by Eric Allam and generated by [dynamodb-spec-generator](https://g
 - Scatter/Gather access patterns
 - Local Secondary Indexes
 - TTL attribute
+- Updates/Puts
