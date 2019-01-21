@@ -1,6 +1,7 @@
 const Ajv = require("ajv");
 const ajvKeywords = require("ajv-keywords");
 const fs = require("fs");
+const path = require("path");
 const _ = require("lodash");
 
 const ajv = new Ajv({
@@ -18,7 +19,8 @@ let validator;
 
 const validateSpec = spec => {
   if (!validator) {
-    const schema = JSON.parse(fs.readFileSync("./src/schema.json", "utf8"));
+    const schemaPath = path.join(__dirname, "schema.json");
+    const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
 
     validator = ajv.compile(schema);
   }
