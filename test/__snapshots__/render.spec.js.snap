@@ -99,45 +99,46 @@ Perform a [DocumentClient.get](http://docs.aws.amazon.com/AWSJavaScriptSDK/lates
 
 ### Get user available episodes
 
-Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property \\"DocumentClient.query\\") against the Main index with a \`#sk = :sk\` condition on the sort key with filter params:
+Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/DynamoDB/DocumentClient.html#query-property \\"DocumentClient.query\\") against the Main index with filter params:
 
 \`\`\`json
 {
   \\"TableName\\": \\"solveless-api\\",
-  \\"KeyConditionExpression\\": \\"#pk = :pk and #sk = :sk\\",
+  \\"KeyConditionExpression\\": \\"#pk = :pk\\",
   \\"ExpressionAttributeNames\\": {
     \\"#pk\\": \\"pk\\",
-    \\"#sk\\": \\"sk\\",
     \\"#releaseDate\\": \\"releaseDate\\",
     \\"#status\\": \\"status\\",
     \\"#title\\": \\"title\\"
   },
   \\"ExpressionAttributeValues\\": {
     \\":pk\\": \\"user-6549\\",
-    \\":sk\\": \\"episode:available\\",
     \\":releaseDate\\": \\"01-12-2019\\",
     \\":status0\\": \\"READY\\",
     \\":status1\\": \\"PUBLISHED\\",
     \\":title\\": 3
   },
+  \\"ScanIndexFoward\\": false,
   \\"FilterExpression\\": \\"#releaseDate <= :releaseDate AND #status IN (:status0, :status1) AND size(#title) >= :title\\"
 }
 \`\`\`
 
 #### Matching Records
 
-| pk (HASH) | sk (RANGE)        |                             |                   |                              |
-| --------- | ----------------- | --------------------------- | ----------------- | ---------------------------- |
-| user-6549 | episode:available | **releaseDate:** 01-01-2019 | **status:** READY | **title:** The Mafia Problem |
+| pk (HASH) | sk (RANGE)    |                             |                   |                               |
+| --------- | ------------- | --------------------------- | ----------------- | ----------------------------- |
+| user-6549 | available:300 | **releaseDate:** 01-01-2019 | **status:** READY | **title:** The Family Problem |
+| user-6549 | available:50  | **releaseDate:** 01-01-2019 | **status:** READY | **title:** The Mafia Problem  |
 
 ## Indexes
 
 ### Main
 
-| pk (HASH) | sk (RANGE)         |                             |                   |                              |                                         |
-| --------- | ------------------ | --------------------------- | ----------------- | ---------------------------- | --------------------------------------- |
-| user-6549 | metadata:user-6549 | **currentPoints:** 87       | **winCount:** 54  | **playedCount:** 65          | **profile:** \`{\\"avatar\\":\\"https://... }\` |
-| user-6549 | episode:available  | **releaseDate:** 01-01-2019 | **status:** READY | **title:** The Mafia Problem |                                         |
+| pk (HASH) | sk (RANGE)         |                             |                   |                               |                                         |
+| --------- | ------------------ | --------------------------- | ----------------- | ----------------------------- | --------------------------------------- |
+| user-6549 | metadata:user-6549 | **currentPoints:** 87       | **winCount:** 54  | **playedCount:** 65           | **profile:** \`{\\"avatar\\":\\"https://... }\` |
+| user-6549 | available:50       | **releaseDate:** 01-01-2019 | **status:** READY | **title:** The Mafia Problem  |                                         |
+| user-6549 | available:300      | **releaseDate:** 01-01-2019 | **status:** READY | **title:** The Family Problem |                                         |
 
 ## Author
 

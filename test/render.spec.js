@@ -14,10 +14,7 @@ it("renders correcly", () => {
         { AttributeName: "pk", KeyType: "HASH" },
         { AttributeName: "sk", KeyType: "RANGE" }
       ],
-      ProvisionedThroughput: {
-        ReadCapacityUnits: 5,
-        WriteCapacityUnits: 5
-      },
+      ProvisionedThroughput: { ReadCapacityUnits: 5, WriteCapacityUnits: 5 },
       BillingMode: "PAY_PER_REQUEST"
     },
     accessPatterns: [
@@ -35,8 +32,8 @@ it("renders correcly", () => {
         index: "main",
         type: "query",
         params: {
-          sort: { value: "episode:available", operator: "=" },
           partition: { value: "user-6549" },
+          order: "DESC",
           filters: [
             { attribute: "releaseDate", operator: "<=", value: "01-12-2019" },
             {
@@ -68,10 +65,17 @@ it("renders correcly", () => {
       },
       {
         pk: "user-6549",
-        sk: "episode:available",
+        sk: "available:50",
         releaseDate: "01-01-2019",
         status: "READY",
         title: "The Mafia Problem"
+      },
+      {
+        pk: "user-6549",
+        sk: "available:300",
+        releaseDate: "01-01-2019",
+        status: "READY",
+        title: "The Family Problem"
       }
     ]
   };

@@ -263,6 +263,49 @@ const recordMatchesQueryCondition = (spec, record, accessPattern) => {
   );
 };
 
+const createRecordCompareForKey = key => {
+  return (firstRecord, secondRecord) => {
+    if (_.isString(firstRecord[key])) {
+      return firstRecord[key].localeCompare(secondRecord[key], "en", {
+        numeric: true
+      });
+    } else {
+      if (firstRecord[key] < secondRecord[key]) {
+        return -1;
+      } else if (firstRecord[key] > secondRecord[key]) {
+        return 1;
+      } else {
+        return 0;
+      }
+    }
+  };
+};
+
+const orderRecords = (records, key, order) => {
+  records.sort((firstRecord, secondRecord) => {
+    const firstRecordValue = firstRecord[key];
+    const secondRecordValue = secondRecord[key];
+
+    if (_.isString(firstRecordValue)) {
+      return firstRecordValue.localeCompare(secondRecordValue, "en", {
+        numeric: true
+      });
+    } else {
+      if (firstRecordValue < secondRecordValue) {
+        return -1;
+      } else if (firstRecordValue > secondRecordValue) {
+        return 1;
+      }
+
+      return 0;
+    }
+  });
+
+  if (order === "DESC") {
+    records.reverse();
+  }
+};
+
 const queryRecords = (spec, accessPattern) => {
   let result = spec.records.filter(record =>
     recordMatchesQueryCondition(spec, record, accessPattern)
@@ -273,15 +316,7 @@ const queryRecords = (spec, accessPattern) => {
   if (indexSpec.sort) {
     const sk = getIndexSortKey(spec, accessPattern.index);
 
-    result = _.sortBy(result, record => record[sk]);
-  }
-
-  if (
-    indexSpec.sort &&
-    accessPattern.params.order &&
-    accessPattern.params.order === "DESC"
-  ) {
-    result.reverse();
+    orderRecords(result, sk, accessPattern.params.order || "ASC");
   }
 
   return result;
