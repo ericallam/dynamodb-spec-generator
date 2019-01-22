@@ -273,7 +273,7 @@ const queryRecords = (spec, accessPattern) => {
   if (indexSpec.sort) {
     const sk = getIndexSortKey(spec, accessPattern.index);
 
-    result = _.sortBy(result, record => _.toInteger(record[sk]));
+    result = _.sortBy(result, record => record[sk]);
   }
 
   if (
