@@ -29,7 +29,8 @@
     "unist-builder": "^1.0.3"
   },
   "devDependencies": {
-    "jest": "^23.6.0"
+    "jest": "^23.6.0",
+    "nearley": "^2.16.0"
   },
   "jest": {
     "testEnvironment": "node"
