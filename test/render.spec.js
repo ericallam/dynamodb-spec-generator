@@ -144,7 +144,8 @@ it("renders sparse indexes correcly", () => {
               sizeOperator: ">=",
               value: 3
             }
-          ]
+          ],
+          limit: 10
         }
       }
     ],

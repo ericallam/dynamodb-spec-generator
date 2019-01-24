@@ -282,7 +282,8 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
     \\":status1\\": \\"PUBLISHED\\",
     \\":title\\": 3
   },
-  \\"FilterExpression\\": \\"#releaseDate <= :releaseDate AND #status IN (:status0, :status1) AND size(#title) >= :title\\"
+  \\"FilterExpression\\": \\"#releaseDate <= :releaseDate AND #status IN (:status0, :status1) AND size(#title) >= :title\\",
+  \\"Limit\\": 10
 }
 \`\`\`
 

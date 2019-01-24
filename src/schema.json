@@ -213,6 +213,9 @@
           "enum": ["ASC", "DESC"],
           "default": "ASC",
           "description": "Controls the ScanIndexForward param in a query request"
+        },
+        "limit": {
+          "type": "integer"
         }
       },
       "additionalProperties": false,

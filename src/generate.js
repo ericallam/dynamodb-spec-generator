@@ -319,6 +319,10 @@ const queryRecords = (spec, accessPattern) => {
     orderRecords(result, sk, accessPattern.params.order || "ASC");
   }
 
+  if (accessPattern.params.limit) {
+    result = _.slice(result, 0, accessPattern.params.limit);
+  }
+
   return result;
 };
 
@@ -523,6 +527,10 @@ const generateQueryRequest = (depth, spec, accessPattern) => {
             filter.value;
       }
     });
+  }
+
+  if (accessPattern.params.limit) {
+    queryParamsSpec.Limit = accessPattern.params.limit;
   }
 
   const params = [
