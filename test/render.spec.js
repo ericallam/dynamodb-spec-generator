@@ -23,8 +23,8 @@ it("renders correcly", () => {
         index: "main",
         type: "get",
         params: {
-          sort: { value: "metadata:user-6549" },
-          partition: { value: "user-6549" }
+          sort: "metadata:user-6549",
+          partition: "user-6549"
         }
       },
       {

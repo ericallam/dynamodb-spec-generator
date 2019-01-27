@@ -222,9 +222,12 @@
       "required": ["partition"]
     },
     "sortParam": {
-      "type": "object",
       "oneOf": [
         {
+          "type": "string"
+        },
+        {
+          "type": "object",
           "required": ["operator", "value"],
           "properties": {
             "operator": {
@@ -233,62 +236,38 @@
             },
             "value": {
               "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
+                { "type": "number" },
+                { "type": "string" },
+                { "type": "integer" }
               ]
             }
           }
         },
         {
+          "type": "object",
           "required": ["operator", "value"],
           "properties": {
-            "operator": {
-              "type": "string",
-              "enum": ["begins_with"]
-            },
-            "value": {
-              "type": "string"
-            }
+            "operator": { "type": "string", "enum": ["begins_with"] },
+            "value": { "type": "string" }
           }
         },
         {
+          "type": "object",
           "required": ["operator", "minValue", "maxValue"],
           "properties": {
-            "operator": {
-              "type": "string",
-              "enum": ["between"]
-            },
+            "operator": { "type": "string", "enum": ["between"] },
             "minValue": {
               "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
+                { "type": "number" },
+                { "type": "string" },
+                { "type": "integer" }
               ]
             },
             "maxValue": {
               "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
+                { "type": "number" },
+                { "type": "string" },
+                { "type": "integer" }
               ]
             }
           }
