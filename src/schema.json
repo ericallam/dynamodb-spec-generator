@@ -161,6 +161,9 @@
         "title": {
           "type": "string"
         },
+        "name": {
+          "type": "string"
+        },
         "description": {
           "type": "string"
         },
@@ -174,6 +177,17 @@
         },
         "params": {
           "$ref": "#/definitions/params"
+        },
+        "attributeMap": {
+          "type": "object",
+          "properties": {
+            "partition": {
+              "type": "string"
+            },
+            "sort": {
+              "type": "string"
+            }
+          }
         }
       },
       "additionalProperties": false,

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A recreation of the Relational Modeling example in the DynamoDB Docs",
   "author": "Eric Allam",
+  "packageName": "@solve-hq/db",
   "tableDefinition": {
     "TableName": "HR-Table",
     "KeySchema": [
@@ -80,11 +81,17 @@
   "accessPatterns": [
     {
       "title": "Look up Employee Details by Employee ID",
+      "name": "getEmployeeDetailsByEmployeeID",
       "type": "get",
       "index": "main",
       "params": {
         "partition": "HR-EMPLOYEE1",
         "sort": { "value": "EMPLOYEE1", "operator": "=" }
+      },
+      "attributeMap": {
+        "partition": "id",
+        "sort": "info",
+        "Data": "name"
       }
     },
     {
@@ -94,6 +101,12 @@
       "params": {
         "partition": { "value": "EMPLOYEE1" },
         "sort": { "value": "John", "operator": "begins_with" }
+      },
+      "name": "allEmployeeDetailsByEmployeeName",
+      "attributeMap": {
+        "partition": "info",
+        "sort": "name",
+        "PK": "id"
       }
     },
     {

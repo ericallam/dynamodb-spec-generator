@@ -4,6 +4,7 @@ it("renders correcly", () => {
   const spec = {
     service: "Solve API",
     description: "Documentation for the DynamoDB table",
+    packageName: "@solve-hq/db",
     tableDefinition: {
       TableName: "solveless-api",
       AttributeDefinitions: [
@@ -25,6 +26,11 @@ it("renders correcly", () => {
         params: {
           sort: "metadata:user-6549",
           partition: "user-6549"
+        },
+        name: "getUserProfileInfo",
+        attributeMap: {
+          partition: "id",
+          sort: "info"
         }
       },
       {
@@ -89,6 +95,7 @@ it("renders sparse indexes correcly", () => {
   const spec = {
     service: "Solve API",
     description: "Documentation for the DynamoDB table",
+    packageName: "@solve-hq/db",
     tableDefinition: {
       TableName: "solveless-api",
       AttributeDefinitions: [

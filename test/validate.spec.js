@@ -51,6 +51,7 @@ test("valid specs", () => {
       accessPatterns: [
         {
           title: "Example",
+          name: "findExample",
           description: "Useful for an example description",
           index: "main",
           type: "query",
@@ -58,10 +59,18 @@ test("valid specs", () => {
             partition: "user-1",
             order: "DESC",
             sort: { value: "1000", operator: "=" }
+          },
+          attributeMap: {
+            partition: "id",
+            sort: "info",
+            data: "birthDate"
           }
         }
       ],
-      records: [{ pk: "user-1", sk: "1000" }, { pk: "user-1", sk: "10000" }]
+      records: [
+        { pk: "user-1", sk: "1000", data: "12-01-1983" },
+        { pk: "user-1", sk: "10000", data: "05-30-1982" }
+      ]
     },
     {
       service: "Solve",

@@ -424,9 +424,6 @@ const resolveExpressionAttributeNames = (spec, accessPattern) => {
 };
 
 const generateQueryRequest = (depth, spec, accessPattern) => {
-  const pk = getIndexPartitionKey(spec, accessPattern.index);
-  const sk = getIndexSortKey(spec, accessPattern.index);
-
   const introProse = [
     u(
       "paragraph",
@@ -546,7 +543,16 @@ const generateQueryRequest = (depth, spec, accessPattern) => {
     depth
   );
 
-  return introProse.concat(params).concat(recordsSection);
+  const dynagenSection = generateAccessPatternDynagenSection(
+    spec,
+    accessPattern,
+    depth
+  );
+
+  return introProse
+    .concat(params)
+    .concat(recordsSection)
+    .concat(dynagenSection);
 };
 
 const generateAccessPatternRecordsSection = (spec, accessPattern, depth) => {
@@ -560,7 +566,7 @@ const generateAccessPatternRecordsSection = (spec, accessPattern, depth) => {
   );
 
   if (matchingRecords.length) {
-    recordsSection = [h(depth + 1, "Matching Records")].concat(
+    recordsSection = [h(depth + 1, "DynamoDB Records")].concat(
       generateTable(spec, accessPattern.index, indexSpec, matchingRecords)
     );
   } else {
@@ -576,6 +582,79 @@ const resolveParamsKeyPartValue = (params, keyPart) => {
   }
 
   return params[keyPart];
+};
+
+const resolveDynagenUsageCode = (functionName, accessPattern, spec) => {
+  const resolveDynagenUsageFunctionArguments = () => {
+    const codeArguments = [];
+
+    codeArguments.push(
+      `"${resolveParamsKeyPartValue(accessPattern.params, "partition")}"`
+    );
+
+    if (accessPattern.params.sort) {
+      codeArguments.push(
+        `"${resolveParamsKeyPartValue(accessPattern.params, "sort")}"`
+      );
+    }
+
+    return _.join(codeArguments, ", ");
+  };
+
+  const resolveDynagenUsageVariableName = () => {
+    return accessPattern.type === "query" ? "items" : "item";
+  };
+
+  return format(
+    `
+    const { ${functionName} } = require("${spec.packageName}");
+
+    const ${resolveDynagenUsageVariableName()} = await ${functionName}(${resolveDynagenUsageFunctionArguments()})
+    `
+  );
+};
+
+const generateAccessPatternDynagenSection = (spec, accessPattern, depth) => {
+  if (!accessPattern.name) {
+    return [];
+  }
+
+  const indexSpec = spec.indexes[accessPattern.index];
+
+  let dynagenSection = [
+    h(depth + 1, "DynaGen Usage"),
+    u("paragraph", [
+      t("Use the generated function "),
+      u("inlineCode", {
+        value: `${accessPattern.name}()`
+      })
+    ]),
+    u("code", {
+      lang: "javascript",
+      value: resolveDynagenUsageCode(accessPattern.name, accessPattern, spec)
+    })
+  ];
+
+  const matchingRecords = findAllRecordsMatchingAccessPattern(
+    spec,
+    accessPattern
+  );
+
+  if (matchingRecords.length) {
+    const table = generateTable(
+      spec,
+      accessPattern.index,
+      indexSpec,
+      matchingRecords,
+      accessPattern.attributeMap
+    );
+
+    dynagenSection = dynagenSection.concat(
+      [h(depth + 2, `Mapped Records`)].concat(table)
+    );
+  }
+
+  return dynagenSection;
 };
 
 const generateGetRequest = (depth, spec, accessPattern) => {
@@ -613,7 +692,16 @@ const generateGetRequest = (depth, spec, accessPattern) => {
     depth
   );
 
-  return introProse.concat(params).concat(records);
+  const dynagenSection = generateAccessPatternDynagenSection(
+    spec,
+    accessPattern,
+    depth
+  );
+
+  return introProse
+    .concat(params)
+    .concat(records)
+    .concat(dynagenSection);
 };
 
 const generateAccessPatternHeader = (depth, spec, accessPattern) => {
@@ -666,13 +754,35 @@ const getAllRecordsInIndex = (records, indexSpec) => {
   });
 };
 
-const generateTableHeader = indexSpec => {
+const resolveMappedAttributeName = (name, indexSpec, attributeMap) => {
+  if (!attributeMap[name]) {
+    return indexSpec[name] || name;
+  }
+
+  return attributeMap[name];
+};
+
+const generateTableHeader = (indexSpec, attributeMap = {}) => {
+  const partitionAttributeName = resolveMappedAttributeName(
+    "partition",
+    indexSpec,
+    attributeMap
+  );
+
+  const sortAttributeName = resolveMappedAttributeName(
+    "sort",
+    indexSpec,
+    attributeMap
+  );
+
   return [
     u(
       "tableRow",
       _.compact([
-        u("tableCell", [t(`${indexSpec.partition} (HASH)`)]),
-        indexSpec.sort ? u("tableCell", [t(`${indexSpec.sort} (RANGE)`)]) : null
+        u("tableCell", [t(`${partitionAttributeName} (HASH)`)]),
+        indexSpec.sort
+          ? u("tableCell", [t(`${sortAttributeName} (RANGE)`)])
+          : null
       ])
     )
   ];
@@ -716,15 +826,27 @@ const generateTableRecordValue = (columnName, value) => {
   ];
 };
 
-const generateTableRecordAttributeCells = (indexSpec, record) => {
+const generateTableRecordAttributeCells = (indexSpec, record, attributeMap) => {
   const primaryKeyAttributes = _.compact([indexSpec.partition, indexSpec.sort]);
 
   return Object.keys(_.omit(record, primaryKeyAttributes)).map(key => {
-    return u("tableCell", generateTableRecordValue(key, record[key]));
+    return u(
+      "tableCell",
+      generateTableRecordValue(
+        resolveMappedAttributeName(key, indexSpec, attributeMap),
+        record[key]
+      )
+    );
   });
 };
 
-const generateTableRecord = (spec, indexName, indexSpec, record) => {
+const generateTableRecord = (
+  spec,
+  indexName,
+  indexSpec,
+  record,
+  attributeMap = {}
+) => {
   return u(
     "tableRow",
     generateTableRecordPrimaryKeyCells(
@@ -732,22 +854,34 @@ const generateTableRecord = (spec, indexName, indexSpec, record) => {
       indexName,
       indexSpec,
       record
-    ).concat(generateTableRecordAttributeCells(indexSpec, record))
+    ).concat(generateTableRecordAttributeCells(indexSpec, record, attributeMap))
   );
 };
 
-const generateTableRecords = (spec, indexName, indexSpec, records) => {
+const generateTableRecords = (
+  spec,
+  indexName,
+  indexSpec,
+  records,
+  attributeMap = {}
+) => {
   return records.map(record =>
-    generateTableRecord(spec, indexName, indexSpec, record)
+    generateTableRecord(spec, indexName, indexSpec, record, attributeMap)
   );
 };
 
-const generateTable = (spec, indexName, indexSpec, records) => {
+const generateTable = (
+  spec,
+  indexName,
+  indexSpec,
+  records,
+  attributeMap = {}
+) => {
   return [
     u(
       "table",
-      generateTableHeader(indexSpec).concat(
-        generateTableRecords(spec, indexName, indexSpec, records)
+      generateTableHeader(indexSpec, attributeMap).concat(
+        generateTableRecords(spec, indexName, indexSpec, records, attributeMap)
       )
     )
   ];

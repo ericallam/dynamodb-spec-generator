@@ -148,11 +148,28 @@ Perform a [DocumentClient.get](http://docs.aws.amazon.com/AWSJavaScriptSDK/lates
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | PK (HASH)    | SK (RANGE) |                      |                           |
 | ------------ | ---------- | -------------------- | ------------------------- |
 | HR-EMPLOYEE1 | EMPLOYEE1  | **Data:** John Smith | **StartDate:** 01-12-2019 |
+
+#### DynaGen Usage
+
+Use the generated function `getEmployeeDetailsByEmployeeID()`
+
+```javascript
+const { getEmployeeDetailsByEmployeeID } = require("@solve-hq/db");
+
+const item = await getEmployeeDetailsByEmployeeID("HR-EMPLOYEE1", "EMPLOYEE1");
+
+```
+
+##### Mapped Records
+
+| id (HASH)    | info (RANGE) |                      |                           |
+| ------------ | ------------ | -------------------- | ------------------------- |
+| HR-EMPLOYEE1 | EMPLOYEE1    | **name:** John Smith | **StartDate:** 01-12-2019 |
 
 ### Query Employee Details by Employee Name
 
@@ -174,11 +191,28 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | SK (HASH) | Data (RANGE) |                      |                           |
 | --------- | ------------ | -------------------- | ------------------------- |
 | EMPLOYEE1 | John Smith   | **PK:** HR-EMPLOYEE1 | **StartDate:** 01-12-2019 |
+
+#### DynaGen Usage
+
+Use the generated function `allEmployeeDetailsByEmployeeName()`
+
+```javascript
+const { allEmployeeDetailsByEmployeeName } = require("@solve-hq/db");
+
+const items = await allEmployeeDetailsByEmployeeName("EMPLOYEE1", "John");
+
+```
+
+##### Mapped Records
+
+| info (HASH) | name (RANGE) |                      |                           |
+| ----------- | ------------ | -------------------- | ------------------------- |
+| EMPLOYEE1   | John Smith   | **id:** HR-EMPLOYEE1 | **StartDate:** 01-12-2019 |
 
 ### Get an employee's current job details only
 
@@ -199,7 +233,7 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | PK (HASH)    | SK (RANGE) |                                     |
 | ------------ | ---------- | ----------------------------------- |
@@ -225,7 +259,7 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | SK (HASH) | Data (RANGE)    |                   |                          |
 | --------- | --------------- | ----------------- | ------------------------ |
@@ -254,7 +288,7 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | GSI-Bucket (HASH) | Data (RANGE)    |                   |                   |
 | ----------------- | --------------- | ----------------- | ----------------- |
@@ -280,7 +314,7 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | SK (HASH)       | Data (RANGE) |                      |                          |                   |
 | --------------- | ------------ | -------------------- | ------------------------ | ----------------- |
@@ -304,7 +338,7 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | SK (HASH)  | Data (RANGE) |                      |                               |
 | ---------- | ------------ | -------------------- | ----------------------------- |
@@ -330,7 +364,7 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | SK (HASH) | Data (RANGE)                 |                     |                    |                    |
 | --------- | ---------------------------- | ------------------- | ------------------ | ------------------ |
@@ -356,7 +390,7 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | SK (HASH) | Data (RANGE)          |                      |                        |
 | --------- | --------------------- | -------------------- | ---------------------- |
@@ -384,7 +418,7 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | SK (HASH) | Data (RANGE)    |                   |                      |
 | --------- | --------------- | ----------------- | -------------------- |
@@ -408,7 +442,7 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | SK (HASH) | Data (RANGE)              |                      |
 | --------- | ------------------------- | -------------------- |
@@ -428,7 +462,7 @@ Perform a [DocumentClient.get](http://docs.aws.amazon.com/AWSJavaScriptSDK/lates
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | PK (HASH)   | SK (RANGE) |                                        |                    |                    |
 | ----------- | ---------- | -------------------------------------- | ------------------ | ------------------ |
@@ -448,7 +482,7 @@ Perform a [DocumentClient.get](http://docs.aws.amazon.com/AWSJavaScriptSDK/lates
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | PK (HASH)   | SK (RANGE) |                                        |                    |                    |
 | ----------- | ---------- | -------------------------------------- | ------------------ | ------------------ |
@@ -473,7 +507,7 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 }
 ```
 
-#### Matching Records
+#### DynamoDB Records
 
 | SK (HASH) | Data (RANGE) |                      |                               |
 | --------- | ------------ | -------------------- | ----------------------------- |
