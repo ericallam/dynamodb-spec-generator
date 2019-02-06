@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "A recreation of the Relational Modeling example in the DynamoDB Docs",
   "author": "Eric Allam",
-  "packageName": "@solve-hq/db",
+  "packageName": "@example-org/relational-model",
+  "github": "ericallam",
   "tableDefinition": {
     "TableName": "HR-Table",
     "KeySchema": [
@@ -139,6 +140,13 @@
           "minValue": "OPEN#2019-01",
           "maxValue": "OPEN#2019-02"
         }
+      },
+      "name": "showAllOpenOrdersBetween",
+      "attributeMap": {
+        "partition": "bucket",
+        "sort": "status",
+        "PK": "id",
+        "SK": "info"
       }
     },
     {
@@ -232,6 +240,12 @@
       "params": {
         "partition": "2018-Q4",
         "order": "DESC"
+      },
+      "name": "getAccountRepsBySalesPeriod",
+      "attributeMap": {
+        "partition": "salesPeriod",
+        "sort": "orderTotal",
+        "PK": "employeeID"
       }
     }
   ],

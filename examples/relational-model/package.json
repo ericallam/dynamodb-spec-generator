@@ -1,0 +1,28 @@
+{
+  "name": "@example-org/relational-model",
+  "version": "1.0.0",
+  "description": "A recreation of the Relational Modeling example in the DynamoDB Docs",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": "https://github.com/example-org/relational-model",
+  "author": "Eric Allam",
+  "license": "MIT",
+  "scripts": {
+    "build": "yarn run build-ts",
+    "build-ts": "./node_modules/.bin/tsc",
+    "watch-ts": "./node_modules/.bin/tsc -w",
+    "prepublishOnly": "yarn run build-ts"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "devDependencies": {
+    "aws-sdk": "^2.395.0",
+    "typescript": "^3.2.4",
+    "ts-node": "^8.0.2",
+    "@types/node": "^10.12.18"
+  },
+  "peerDependencies": {
+    "@solve-hq/solve-powertools": "1.x"
+  }
+}

@@ -5,6 +5,8 @@ const { Command, flags } = require("@oclif/command");
 const { renderMarkdown } = require("./render");
 const { promisify } = require("util");
 const { validateSpec } = require("./validate");
+const { generatePackage } = require("./packager");
+const { preprocessSpec } = require("./preprocessSpec");
 
 const writeFile = promisify(fs.writeFile);
 const readFile = promisify(fs.readFile);
@@ -40,7 +42,7 @@ const logMarkdown = markdown => {
   console.log(markdown);
 };
 
-const outputMarkdown = async (file, outputDestination) => {
+const loadSpecFromFile = async file => {
   const specContents = await readFile(file, "utf8");
 
   const spec = JSON.parse(specContents);
@@ -52,6 +54,30 @@ const outputMarkdown = async (file, outputDestination) => {
 
     return;
   }
+
+  return preprocessSpec(spec);
+};
+
+const outputPackage = async (file, packageDestination) => {
+  const spec = await loadSpecFromFile(file);
+
+  if (!spec.packageName) {
+    console.error(
+      "Cannot generate a package without a packageName specified in the spec file"
+    );
+
+    return;
+  }
+
+  console.log(
+    `Generating a package named ${spec.packageName} at ${packageDestination}`
+  );
+
+  return generatePackage(spec.packageName, packageDestination, spec);
+};
+
+const outputMarkdown = async (file, outputDestination) => {
+  const spec = await loadSpecFromFile(file);
 
   const markdown = renderMarkdown(spec);
 
@@ -81,6 +107,10 @@ class GenerateDynamoSpec extends Command {
       );
     } else {
       await outputMarkdown(args.file, flags.output);
+
+      if (flags.package) {
+        await outputPackage(args.file, flags.package);
+      }
     }
   }
 }
@@ -98,6 +128,10 @@ GenerateDynamoSpec.flags = {
   output: flags.string({
     char: "o",
     description: "save rendered markdown to output file"
+  }),
+  package: flags.string({
+    char: "p",
+    description: "create a DynaGen package at this path"
   }),
   watch: flags.boolean({
     char: "w",

@@ -159,7 +159,9 @@ Perform a [DocumentClient.get](http://docs.aws.amazon.com/AWSJavaScriptSDK/lates
 Use the generated function `getEmployeeDetailsByEmployeeID()`
 
 ```javascript
-const { getEmployeeDetailsByEmployeeID } = require("@solve-hq/db");
+const {
+  getEmployeeDetailsByEmployeeID
+} = require("@example-org/relational-model");
 
 const item = await getEmployeeDetailsByEmployeeID("HR-EMPLOYEE1", "EMPLOYEE1");
 
@@ -202,7 +204,9 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 Use the generated function `allEmployeeDetailsByEmployeeName()`
 
 ```javascript
-const { allEmployeeDetailsByEmployeeName } = require("@solve-hq/db");
+const {
+  allEmployeeDetailsByEmployeeName
+} = require("@example-org/relational-model");
 
 const items = await allEmployeeDetailsByEmployeeName("EMPLOYEE1", "John");
 
@@ -293,6 +297,23 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 | GSI-Bucket (HASH) | Data (RANGE)    |                   |                   |
 | ----------------- | --------------- | ----------------- | ----------------- |
 | Bucket-6          | OPEN#2019-01-18 | **PK:** OE-ORDER1 | **SK:** CUSTOMER1 |
+
+#### DynaGen Usage
+
+Use the generated function `showAllOpenOrdersBetween()`
+
+```javascript
+const { showAllOpenOrdersBetween } = require("@example-org/relational-model");
+
+const items = await showAllOpenOrdersBetween("Bucket-6", "undefined");
+
+```
+
+##### Mapped Records
+
+| bucket (HASH) | status (RANGE)  |                   |                     |
+| ------------- | --------------- | ----------------- | ------------------- |
+| Bucket-6      | OPEN#2019-01-18 | **id:** OE-ORDER1 | **info:** CUSTOMER1 |
 
 ### All Employees Hired Recently
 
@@ -513,6 +534,26 @@ Perform a [DocumentClient.query](http://docs.aws.amazon.com/AWSJavaScriptSDK/lat
 | --------- | ------------ | -------------------- | ----------------------------- |
 | 2018-Q4   | 10000        | **PK:** HR-EMPLOYEE2 | **Employee Name:** John Smith |
 | 2018-Q4   | 5000         | **PK:** HR-EMPLOYEE1 | **Employee Name:** John Smith |
+
+#### DynaGen Usage
+
+Use the generated function `getAccountRepsBySalesPeriod()`
+
+```javascript
+const {
+  getAccountRepsBySalesPeriod
+} = require("@example-org/relational-model");
+
+const items = await getAccountRepsBySalesPeriod("2018-Q4");
+
+```
+
+##### Mapped Records
+
+| salesPeriod (HASH) | orderTotal (RANGE) |                              |                               |
+| ------------------ | ------------------ | ---------------------------- | ----------------------------- |
+| 2018-Q4            | 10000              | **employeeID:** HR-EMPLOYEE2 | **Employee Name:** John Smith |
+| 2018-Q4            | 5000               | **employeeID:** HR-EMPLOYEE1 | **Employee Name:** John Smith |
 
 ## Indexes
 
