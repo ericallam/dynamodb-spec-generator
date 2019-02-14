@@ -1,6 +1,6 @@
 {
   "name": "dynamodb-spec-generator",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "A command line tool to generate documentation for a DynamoDB table and its access patterns.",
   "main": "src/index.js",
   "repository": "https://github.com/ericallam/dynamodb-spec-generator",
