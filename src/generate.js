@@ -242,13 +242,13 @@ const recordMatchesQueryCondition = (spec, record, accessPattern) => {
     return false;
   }
 
+  const sk = getIndexSortKey(spec, index);
+
   if (!params.sort && !params.filters) {
-    return true;
+    return record.hasOwnProperty(sk);
   }
 
   if (params.sort) {
-    const sk = getIndexSortKey(spec, index);
-
     if (!sortKeyQueryMatcher(record[sk], params.sort)) {
       return false;
     }
